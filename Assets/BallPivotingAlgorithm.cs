@@ -4,22 +4,21 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class BallPivotingAlgorithm : MonoBehaviour {
-	List<Point> points;
 	Front f;
+	PointCloud cloud;
+	float ballRadius;
+	List<Triangle> mesh;
+	Pivoter pivoter;
 
 	void RunBallPivot() {
-		
+		pivoter = new Pivoter(cloud, ballRadius);
 		while (true) {
 			Edge e;
 			while((e = f.GetActiveEdge()) != null) {
 				Point p;
-				if((p = BallPivot(e)) != null && (!f.IsUsed(p) || f.OnFront(p))){
+				if((p = pivoter.Pivot(e)) != null && (!pivoter.IsUsed(p) || f.OnFront(p))){
 					OutputTriangle(p, e.First, e.Second);
-					Join(e, p, f);
-					if (f.Contains(new Edge(e.First, p)))
-						Glue(new Edge(p, e.First), new Edge(e.First, p));
-					if(f.Contains(new Edge(e.Second, p)))
-						Glue(new Edge(p, e.First), new Edge(p, e.First));
+					f.JoinAndGlue(e, p, pivoter);
 				} else {
 					MarkAsBoundary(e);
 				}
@@ -48,17 +47,12 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		
 	}
 
-	private void Join(Edge e, Point p, Front f) {
-		
-	}
-
 	private void OutputTriangle(Point p1, Point p2, Point p3) {
 		
 	}
+}
 
-	private Point BallPivot(Edge e) {
-		return null;
-	}
+internal class PointCloud {
 }
 
 class Triangle {
@@ -119,30 +113,83 @@ class Edge {
 }
 
 class Front {
-	List<LinkedList<Edge>> edgeCollections;
+	LinkedList<Edge> front;
+	LinkedListNode<Edge> pos;
+	SortedDictionary<int, SortedDictionary<Edge, LinkedListNode<Edge>>> points;
+
+	public Front() {
+		front = new LinkedList<Edge>();
+		pos = front.First;
+	}
 
 	internal bool Contains(Edge edge) {
 		return false;
 	}
 
 	internal Edge GetActiveEdge() {
-		return null;
+		Edge e = null;
+		if(front != null && front.Count > 0) {
+			bool firstLoop = true;
+			for (LinkedListNode<Edge> it = pos; ; it = it.Next) {
+				if(it == null) {
+					it = front.First;
+				}
+				if(!firstLoop && it == pos) {
+					break;
+				}
+				if (it.Value.Active) {
+					pos = it;
+					e = it.Value;
+					break;
+				}
+			}
+		}
+
+		return e;
 	}
 
 	internal void Insert(Edge edge) {
-		
-	}
-
-	internal bool IsUsed(Point p) {
-		return false;
+		front.AddLast(edge);
+		AddEdgePoints(front.Last);
 	}
 
 	internal bool OnFront(Point p) {
 		return false;
 	}
+
+	private LinkedListNode<Edge> IsPresent(Edge edge) {
+		return null;
+	}
+
+	private void AddEdgePoints(LinkedListNode<Edge> edge) {
+
+	}
+
+	private void RemoveEdgePoints(Edge edge) {
+
+	}
+
+	internal void JoinAndGlue(Edge e, Point p, Pivoter pivoter) {
+		//join
+		if (f.Contains(new Edge(e.First, p)))
+			Glue(new Edge(p, e.First), new Edge(e.First, p));
+		if (f.Contains(new Edge(e.Second, p)))
+			Glue(new Edge(p, e.First), new Edge(p, e.First));
+	}
 }
 
+internal class Pivoter {
+	PointCloud cloud;
+	float ballRadius;
+	SortedDictionary<int, bool> notUsed;
+	public Pivoter(PointCloud cloud, float ballRadius) {
+	}
 
-class Helper {
+	internal bool IsUsed(Point p) {
+		throw new NotImplementedException();
+	}
 
+	internal Point Pivot(Edge e) {
+		throw new NotImplementedException();
+	}
 }
