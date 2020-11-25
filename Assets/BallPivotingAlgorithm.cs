@@ -11,10 +11,10 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		
 		while (true) {
 			Edge e;
-			while((e = GetActiveEdge(f)) != null) {
+			while((e = f.GetActiveEdge()) != null) {
 				Point p;
-				if((p = BallPivot(e)) != null && (NotUsed(p) || OnFront(p))){
-					OutPutTriangle(p, e.First, e.Second);
+				if((p = BallPivot(e)) != null && (!f.IsUsed(p) || f.OnFront(p))){
+					OutputTriangle(p, e.First, e.Second);
 					Join(e, p, f);
 					if (f.Contains(new Edge(e.First, p)))
 						Glue(new Edge(p, e.First), new Edge(e.First, p));
@@ -27,7 +27,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 			Triangle tri;
 			if ((tri = FindSeedTriangle()) != null) {
-				OutPutTriangle(tri.First, tri.Second, tri.Third);
+				OutputTriangle(tri.First, tri.Second, tri.Third);
 				f.Insert(new Edge(tri.First, tri.Second));
 				f.Insert(new Edge(tri.Second, tri.Third));
 				f.Insert(new Edge(tri.Third, tri.First));
@@ -52,24 +52,12 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		
 	}
 
-	private void OutPutTriangle(Point p1, Point p2, Point p3) {
+	private void OutputTriangle(Point p1, Point p2, Point p3) {
 		
-	}
-
-	private bool OnFront(Point p) {
-		return false;
-	}
-
-	private bool NotUsed(Point p) {
-		return false;
 	}
 
 	private Point BallPivot(Edge e) {
 		return null;
-	}
-
-	private Edge GetActiveEdge(Front f) {
-		throw null;
 	}
 }
 
@@ -80,20 +68,53 @@ class Triangle {
 }
 
 class Point {
-	Vector3 position;
+	public float x { get; set; }
+	public float y { get; set; }
+	public float z { get; set; }
+	public float nx { get; set; }
+	public float ny { get; set; }
+	public float nz { get; set; }
+	public float Curvature { get; set; }
+
+	public Point(float x, float y, float z, float nx = 0, float ny = 0, float nz = 0, float curvature = 0) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		this.nx = nx;
+		this.ny = ny;
+		this.nz = nz;
+		this.Curvature = curvature;
+	}
 }
 
 class Edge {
 	public Point First { get; set; }
 	public Point Second { get; set; }
+	public Point OppositeVertex { get; set; }
+	
+	public Point BallCenter { get; private set; }
+	public Point MiddlePoint { get; private set; }
+	public bool Active { get; set; }
+	public float PivotingRadius { get; private set; }
+
 
 	public Edge() {
-
+		First = Second = OppositeVertex = BallCenter = MiddlePoint = null;
+		Active = false;
+		PivotingRadius = 0;
 	}
 
-	public Edge(Point first, Point second) {
+	public Edge(Point first, Point second, Point opposite, Point ballCenter) {
 		First = first;
 		Second = second;
+		OppositeVertex = opposite;
+		BallCenter = ballCenter;
+		MiddlePoint = new Point((First.x + Second.x) * 0.5f, (First.y + Second.y) * 0.5f, (First.z + Second.z) * 0.5f);
+		Vector3 m = new Vector3(MiddlePoint.x, MiddlePoint.y, MiddlePoint.z);
+		Vector3 c = new Vector3(BallCenter.x, BallCenter.y, BallCenter.z);
+		PivotingRadius = (m - c).magnitude;
+
+		Active = true;
 	}
 }
 
@@ -104,7 +125,24 @@ class Front {
 		return false;
 	}
 
+	internal Edge GetActiveEdge() {
+		return null;
+	}
+
 	internal void Insert(Edge edge) {
 		
 	}
+
+	internal bool IsUsed(Point p) {
+		return false;
+	}
+
+	internal bool OnFront(Point p) {
+		return false;
+	}
+}
+
+
+class Helper {
+
 }
