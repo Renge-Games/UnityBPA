@@ -15,7 +15,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		while (true) {
 			Edge e;
 			while((e = f.GetActiveEdge()) != null) {
-				Point p;
+				PointNormal p;
 				if((p = pivoter.Pivot(e)) != null && (!pivoter.IsUsed(p) || f.OnFront(p))){
 					OutputTriangle(p, e.First, e.Second);
 					f.JoinAndGlue(e, p, pivoter);
@@ -47,47 +47,24 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		
 	}
 
-	private void OutputTriangle(Point p1, Point p2, Point p3) {
+	private void OutputTriangle(PointNormal p1, PointNormal p2, PointNormal p3) {
 		
 	}
 }
 
-internal class PointCloud {
-}
-
 class Triangle {
-	public Point First { get; set; }
-	public Point Second { get; set; }
-	public Point Third { get; set; }
-}
-
-class Point {
-	public float x { get; set; }
-	public float y { get; set; }
-	public float z { get; set; }
-	public float nx { get; set; }
-	public float ny { get; set; }
-	public float nz { get; set; }
-	public float Curvature { get; set; }
-
-	public Point(float x, float y, float z, float nx = 0, float ny = 0, float nz = 0, float curvature = 0) {
-		this.x = x;
-		this.y = y;
-		this.z = z;
-		this.nx = nx;
-		this.ny = ny;
-		this.nz = nz;
-		this.Curvature = curvature;
-	}
+	public PointNormal First { get; set; }
+	public PointNormal Second { get; set; }
+	public PointNormal Third { get; set; }
 }
 
 class Edge {
-	public Point First { get; set; }
-	public Point Second { get; set; }
-	public Point OppositeVertex { get; set; }
+	public PointNormal First { get; set; }
+	public PointNormal Second { get; set; }
+	public PointNormal OppositeVertex { get; set; }
 	
-	public Point BallCenter { get; private set; }
-	public Point MiddlePoint { get; private set; }
+	public PointNormal BallCenter { get; private set; }
+	public PointNormal MiddlePoint { get; private set; }
 	public bool Active { get; set; }
 	public float PivotingRadius { get; private set; }
 
@@ -98,12 +75,12 @@ class Edge {
 		PivotingRadius = 0;
 	}
 
-	public Edge(Point first, Point second, Point opposite, Point ballCenter) {
+	public Edge(PointNormal first, PointNormal second, PointNormal opposite, PointNormal ballCenter) {
 		First = first;
 		Second = second;
 		OppositeVertex = opposite;
 		BallCenter = ballCenter;
-		MiddlePoint = new Point((First.x + Second.x) * 0.5f, (First.y + Second.y) * 0.5f, (First.z + Second.z) * 0.5f);
+		MiddlePoint = new PointNormal((First.x + Second.x) * 0.5f, (First.y + Second.y) * 0.5f, (First.z + Second.z) * 0.5f);
 		Vector3 m = new Vector3(MiddlePoint.x, MiddlePoint.y, MiddlePoint.z);
 		Vector3 c = new Vector3(BallCenter.x, BallCenter.y, BallCenter.z);
 		PivotingRadius = (m - c).magnitude;
@@ -153,7 +130,7 @@ class Front {
 		AddEdgePoints(front.Last);
 	}
 
-	internal bool OnFront(Point p) {
+	internal bool OnFront(PointNormal p) {
 		return false;
 	}
 
@@ -169,7 +146,7 @@ class Front {
 
 	}
 
-	internal void JoinAndGlue(Edge e, Point p, Pivoter pivoter) {
+	internal void JoinAndGlue(Edge e, PointNormal p, Pivoter pivoter) {
 		//join
 		if (f.Contains(new Edge(e.First, p)))
 			Glue(new Edge(p, e.First), new Edge(e.First, p));
@@ -185,11 +162,11 @@ internal class Pivoter {
 	public Pivoter(PointCloud cloud, float ballRadius) {
 	}
 
-	internal bool IsUsed(Point p) {
+	internal bool IsUsed(PointNormal p) {
 		throw new NotImplementedException();
 	}
 
-	internal Point Pivot(Edge e) {
+	internal PointNormal Pivot(Edge e) {
 		throw new NotImplementedException();
 	}
 }
