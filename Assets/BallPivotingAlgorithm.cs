@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
-	PointCloud cloud;
+	renge_pcl.PointCloud<renge_pcl.PointNormal> cloud;
 	float ballRadius;
 	List<Triangle> mesh;
 	Pivoter pivoter;
@@ -15,7 +15,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		while (true) {
 			Edge e;
 			while((e = f.GetActiveEdge()) != null) {
-				PointNormal p;
+				renge_pcl.PointNormal p;
 				if((p = pivoter.Pivot(e)) != null && (!pivoter.IsUsed(p) || f.OnFront(p))){
 					OutputTriangle(p, e.First, e.Second);
 					f.JoinAndGlue(e, p, pivoter);
@@ -47,24 +47,24 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		
 	}
 
-	private void OutputTriangle(PointNormal p1, PointNormal p2, PointNormal p3) {
+	private void OutputTriangle(renge_pcl.PointNormal p1, renge_pcl.PointNormal p2, renge_pcl.PointNormal p3) {
 		
 	}
 }
 
 class Triangle {
-	public PointNormal First { get; set; }
-	public PointNormal Second { get; set; }
-	public PointNormal Third { get; set; }
+	public renge_pcl.PointNormal First { get; set; }
+	public renge_pcl.PointNormal Second { get; set; }
+	public renge_pcl.PointNormal Third { get; set; }
 }
 
 class Edge {
-	public PointNormal First { get; set; }
-	public PointNormal Second { get; set; }
-	public PointNormal OppositeVertex { get; set; }
+	public renge_pcl.PointNormal First { get; set; }
+	public renge_pcl.PointNormal Second { get; set; }
+	public renge_pcl.PointNormal OppositeVertex { get; set; }
 	
-	public PointNormal BallCenter { get; private set; }
-	public PointNormal MiddlePoint { get; private set; }
+	public renge_pcl.PointNormal BallCenter { get; private set; }
+	public renge_pcl.PointNormal MiddlePoint { get; private set; }
 	public bool Active { get; set; }
 	public float PivotingRadius { get; private set; }
 
@@ -75,12 +75,12 @@ class Edge {
 		PivotingRadius = 0;
 	}
 
-	public Edge(PointNormal first, PointNormal second, PointNormal opposite, PointNormal ballCenter) {
+	public Edge(renge_pcl.PointNormal first, renge_pcl.PointNormal second, renge_pcl.PointNormal opposite, renge_pcl.PointNormal ballCenter) {
 		First = first;
 		Second = second;
 		OppositeVertex = opposite;
 		BallCenter = ballCenter;
-		MiddlePoint = new PointNormal((First.x + Second.x) * 0.5f, (First.y + Second.y) * 0.5f, (First.z + Second.z) * 0.5f);
+		MiddlePoint = new renge_pcl.PointNormal((First.x + Second.x) * 0.5f, (First.y + Second.y) * 0.5f, (First.z + Second.z) * 0.5f);
 		Vector3 m = new Vector3(MiddlePoint.x, MiddlePoint.y, MiddlePoint.z);
 		Vector3 c = new Vector3(BallCenter.x, BallCenter.y, BallCenter.z);
 		PivotingRadius = (m - c).magnitude;
@@ -130,7 +130,7 @@ class Front {
 		AddEdgePoints(front.Last);
 	}
 
-	internal bool OnFront(PointNormal p) {
+	internal bool OnFront(renge_pcl.PointNormal p) {
 		return false;
 	}
 
@@ -146,7 +146,7 @@ class Front {
 
 	}
 
-	internal void JoinAndGlue(Edge e, PointNormal p, Pivoter pivoter) {
+	internal void JoinAndGlue(Edge e, renge_pcl.PointNormal p, Pivoter pivoter) {
 		//join
 		if (f.Contains(new Edge(e.First, p)))
 			Glue(new Edge(p, e.First), new Edge(e.First, p));
@@ -156,17 +156,17 @@ class Front {
 }
 
 internal class Pivoter {
-	PointCloud cloud;
+	renge_pcl.PointCloud<renge_pcl.PointNormal> cloud;
 	float ballRadius;
 	SortedDictionary<int, bool> notUsed;
-	public Pivoter(PointCloud cloud, float ballRadius) {
+	public Pivoter(renge_pcl.PointCloud<renge_pcl.PointNormal> cloud, float ballRadius) {
 	}
 
-	internal bool IsUsed(PointNormal p) {
+	internal bool IsUsed(renge_pcl.PointNormal p) {
 		throw new NotImplementedException();
 	}
 
-	internal PointNormal Pivot(Edge e) {
+	internal renge_pcl.PointNormal Pivot(Edge e) {
 		throw new NotImplementedException();
 	}
 }
