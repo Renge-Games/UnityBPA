@@ -3,9 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+using renge_pcl;
+
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
-	renge_pcl.PointCloud<renge_pcl.PointNormal> cloud;
+	PointCloud<renge_pcl.PointNormal> cloud;
 	float ballRadius;
 	List<Triangle> mesh;
 	Pivoter pivoter;
@@ -15,7 +17,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		while (true) {
 			Edge e;
 			while((e = f.GetActiveEdge()) != null) {
-				renge_pcl.PointNormal p;
+				PointNormal p;
 				if((p = pivoter.Pivot(e)) != null && (!pivoter.IsUsed(p) || f.OnFront(p))){
 					OutputTriangle(p, e.First, e.Second);
 					f.JoinAndGlue(e, p, pivoter);
@@ -47,24 +49,24 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		
 	}
 
-	private void OutputTriangle(renge_pcl.PointNormal p1, renge_pcl.PointNormal p2, renge_pcl.PointNormal p3) {
+	private void OutputTriangle(PointNormal p1, PointNormal p2, PointNormal p3) {
 		
 	}
 }
 
 class Triangle {
-	public renge_pcl.PointNormal First { get; set; }
-	public renge_pcl.PointNormal Second { get; set; }
-	public renge_pcl.PointNormal Third { get; set; }
+	public PointNormal First { get; set; }
+	public PointNormal Second { get; set; }
+	public PointNormal Third { get; set; }
 }
 
 class Edge {
-	public renge_pcl.PointNormal First { get; set; }
-	public renge_pcl.PointNormal Second { get; set; }
-	public renge_pcl.PointNormal OppositeVertex { get; set; }
+	public PointNormal First { get; set; }
+	public PointNormal Second { get; set; }
+	public PointNormal OppositeVertex { get; set; }
 	
-	public renge_pcl.PointNormal BallCenter { get; private set; }
-	public renge_pcl.PointNormal MiddlePoint { get; private set; }
+	public PointNormal BallCenter { get; private set; }
+	public PointNormal MiddlePoint { get; private set; }
 	public bool Active { get; set; }
 	public float PivotingRadius { get; private set; }
 
@@ -146,7 +148,7 @@ class Front {
 
 	}
 
-	internal void JoinAndGlue(Edge e, renge_pcl.PointNormal p, Pivoter pivoter) {
+	internal void JoinAndGlue(Edge e, PointNormal p, Pivoter pivoter) {
 		//join
 		if (f.Contains(new Edge(e.First, p)))
 			Glue(new Edge(p, e.First), new Edge(e.First, p));
@@ -155,18 +157,112 @@ class Front {
 	}
 }
 
-internal class Pivoter {
-	renge_pcl.PointCloud<renge_pcl.PointNormal> cloud;
+class Pivoter {
+	KDTree<PointNormal> kdtree;
+	PointCloud<PointNormal> cloud;
 	float ballRadius;
 	SortedDictionary<int, bool> notUsed;
-	public Pivoter(renge_pcl.PointCloud<renge_pcl.PointNormal> cloud, float ballRadius) {
+
+	public Pivoter(PointCloud<PointNormal> cloud, float ballRadius) {
+		this.ballRadius = ballRadius;
+		this.cloud = cloud;
+		kdtree = new KDTree<PointNormal>();
+		kdtree.SetInputCloud(cloud);
+
+		for (int i = 0; i < cloud.Count; i++) {
+			notUsed[i] = false;
+		}
 	}
 
-	internal bool IsUsed(renge_pcl.PointNormal p) {
+	internal Tuple<int, Triangle> Pivot(Edge e) {
 		throw new NotImplementedException();
 	}
 
-	internal renge_pcl.PointNormal Pivot(Edge e) {
-		throw new NotImplementedException();
+	internal Triangle FindSeed() {
+		return null;
+	}
+
+	internal PointNormal GetPoint(int index) {
+		return cloud[index];
+	}
+
+	internal bool IsUsed(int index) {
+		return !notUsed.TryGetValue(index, out _);
+	}
+
+	internal void SetUsed(int index) {
+		notUsed.Remove(index);
+	}
+
+	Tuple<Vector3, float> GetCircumScribedCircle(Vector3 p0, Vector3 p1, Vector3 p2) {
+		return null;
+	}
+
+	bool GetBallCenter(int index0, int index1, int index2, out Vector3 center, out Vector3Int sequence) {
+		bool status = false;
+		center = new Vector3();
+
+		Vector3 p0 = cloud[index0].AsVector3();
+		Vector3 p1 = cloud[index1].AsVector3();
+		Vector3 p2 = cloud[index2].AsVector3();
+		sequence = new Vector3Int(index0, index1, index2);
+
+		Vector3 v10 = p1 - p0;
+		Vector3 v20 = p2 - p0;
+		Vector3 normal = Vector3.Cross(v10, v20);
+
+		if(normal.magnitude > 0.0000000001) {
+			normal.Normalize();
+			if(!IsOriented(normal, cloud[index0].NormalAsVector3(), cloud[index1].NormalAsVector3(), cloud[index2].NormalAsVector3())) {
+				p0 = cloud[index1].AsVector3();
+				p1 = cloud[index0].AsVector3();
+				sequence = new Vector3Int(index1, index0, index2);
+
+				v10 = p1 - p0;
+				v20 = p2 - p0;
+				normal = Vector3.Cross(v10, v20).normalized;
+			}
+
+			Tuple<Vector3, float> circle = GetCircumScribedCircle(p0, p1, p2);
+			float squaredDistance = ballRadius * ballRadius - circle.Item2 * circle.Item2;
+			if(squaredDistance > 0) {
+				float distance = Mathf.Sqrt(Mathf.Abs(squaredDistance));
+				center = circle.Item1 + distance * normal;
+				status = true;
+			}
+		}
+
+		return status;
+	}
+
+	bool IsOriented(Vector3 normal, Vector3 normal0, Vector3 normal1, Vector3 normal2) {
+		int count = 0;
+		count = normal0.Dot(normal) < 0 ? count + 1 : count;
+		count = normal1.Dot(normal) < 0 ? count + 1 : count;
+		count = normal2.Dot(normal) < 0 ? count + 1 : count;
+		return count <= 1;
+	}
+
+	bool isEmpty(List<int> data, int index0, int index1, int index2, Vector3 ballCenter) {
+		if (data == null || data.Count <= 0)
+			return true;
+
+		for (int i = 0; i < data.Count; i++) {
+			if (data[i] == index0 || data[i] == index1 || data[i] == index2)
+				continue;
+			Vector3 dist = cloud[data[i]].AsVector3() - ballCenter;
+			if (Mathf.Abs(dist.magnitude - ballRadius) < 0.0000001)
+				continue;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	List<int> GetNeighbors(PointNormal point, float radius) {
+		List<int> indices;
+		kdtree.RadiusSearch(point, radius, out indices, out _);
+		return indices;
 	}
 }

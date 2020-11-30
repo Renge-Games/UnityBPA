@@ -110,15 +110,15 @@ namespace renge_pcl {
 			DivideTree(0, Cloud.Count, rootBBox_);
 		}
 
-		public int RadiusSearch(T point, float radius, List<int> kIndices, List<float> kSqrDistances) {
+		public int RadiusSearch(T point, float radius, out List<int> indices, out List<float> dists) {
 
 			List<float> query = new List<float>(3);
 			query.Add(point.x);
 			query.Add(point.y);
 			query.Add(point.z);
 
-			List<int> indices = new List<int>();
-			List<float> dists = new List<float>();
+			indices = new List<int>();
+			dists = new List<float>();
 
 			int neighborsInRadius;
 			ResultSet resultSet = new ResultSet(radius * radius);
@@ -134,11 +134,6 @@ namespace renge_pcl {
 			if (neighborsInRadius > 0) {
 				resultSet.Copy(indices, dists, Sorted);
 			}
-
-			kIndices.Clear();
-			kIndices.AddRange(indices);
-			kSqrDistances.Clear();
-			kSqrDistances.AddRange(dists);
 
 			return neighborsInRadius;
 		}
@@ -492,6 +487,10 @@ namespace renge_pcl {
 				data[key] = value;
 			}
 		}
+
+		public Vector3 AsVector3() {
+			return new Vector3(data[0], data[1], data[2]);
+		}
 	}
 
 	public class PointNormal : Point {
@@ -517,6 +516,10 @@ namespace renge_pcl {
 			ndata[1] = ny;
 			ndata[2] = nz;
 			this.Curvature = curvature;
+		}
+
+		internal Vector3 NormalAsVector3() {
+			return new Vector3(ndata[0], ndata[1], ndata[2]);
 		}
 	}
 
