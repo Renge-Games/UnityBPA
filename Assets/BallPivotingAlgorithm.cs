@@ -7,20 +7,24 @@ using renge_pcl;
 
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
-	PointCloud<renge_pcl.PointNormal> cloud;
+	PointCloud<PointNormal> cloud;
 	float ballRadius;
 	List<Triangle> mesh;
 	Pivoter pivoter;
+
+	private void Start() {
+		mesh = new List<Triangle>();
+	}
 
 	void RunBallPivot() {
 		pivoter = new Pivoter(cloud, ballRadius);
 		while (true) {
 			Edge e;
 			while((e = f.GetActiveEdge()) != null) {
-				PointNormal p;
-				if((p = pivoter.Pivot(e)) != null && (!pivoter.IsUsed(p) || f.OnFront(p))){
-					OutputTriangle(p, e.First, e.Second);
-					f.JoinAndGlue(e, p, pivoter);
+				Tuple<int, Triangle> t = pivoter.Pivot(e);
+				if(t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))){
+					mesh.Add(t.Item2);
+					f.JoinAndGlue(t, pivoter);
 				} else {
 					MarkAsBoundary(e);
 				}
@@ -69,9 +73,9 @@ class Triangle {
 }
 
 class Edge {
-	public PointNormal First { get; set; }
-	public PointNormal Second { get; set; }
-	public PointNormal OppositeVertex { get; set; }
+	public Tuple<PointNormal, int> First { get; set; }
+	public Tuple<PointNormal, int> Second { get; set; }
+	public Tuple<PointNormal, int> OppositeVertex { get; set; }
 	
 	public PointNormal BallCenter { get; private set; }
 	public PointNormal MiddlePoint { get; private set; }
@@ -80,17 +84,18 @@ class Edge {
 
 
 	public Edge() {
-		First = Second = OppositeVertex = BallCenter = MiddlePoint = null;
+		First = Second = OppositeVertex = null;
+		BallCenter = MiddlePoint = null;
 		Active = false;
 		PivotingRadius = 0;
 	}
 
-	public Edge(renge_pcl.PointNormal first, renge_pcl.PointNormal second, renge_pcl.PointNormal opposite, renge_pcl.PointNormal ballCenter) {
+	public Edge(Tuple<PointNormal, int> first, Tuple<PointNormal, int> second, Tuple<PointNormal, int> opposite, PointNormal ballCenter) {
 		First = first;
 		Second = second;
 		OppositeVertex = opposite;
 		BallCenter = ballCenter;
-		MiddlePoint = new renge_pcl.PointNormal((First.x + Second.x) * 0.5f, (First.y + Second.y) * 0.5f, (First.z + Second.z) * 0.5f);
+		MiddlePoint = new PointNormal((First.Item1.x + Second.Item1.x) * 0.5f, (First.Item1.y + Second.Item1.y) * 0.5f, (First.Item1.z + Second.Item1.z) * 0.5f);
 		Vector3 m = new Vector3(MiddlePoint.x, MiddlePoint.y, MiddlePoint.z);
 		Vector3 c = new Vector3(BallCenter.x, BallCenter.y, BallCenter.z);
 		PivotingRadius = (m - c).magnitude;
@@ -140,7 +145,7 @@ class Front {
 		AddEdgePoints(front.Last);
 	}
 
-	internal bool OnFront(renge_pcl.PointNormal p) {
+	internal bool InFront(int index) {
 		return false;
 	}
 
@@ -156,7 +161,7 @@ class Front {
 
 	}
 
-	internal void JoinAndGlue(Edge e, PointNormal p, Pivoter pivoter) {
+	internal void JoinAndGlue(Tuple<int, Triangle> triangle, Pivoter pivoter) {
 		//join
 		if (f.Contains(new Edge(e.First, p)))
 			Glue(new Edge(p, e.First), new Edge(e.First, p));
@@ -183,7 +188,66 @@ class Pivoter {
 	}
 
 	internal Tuple<int, Triangle> Pivot(Edge e) {
-		throw new NotImplementedException();
+		Tuple<PointNormal, int> v0 = e.First;
+		Tuple<PointNormal, int> v1 = e.Second;
+		Tuple<PointNormal, int> op = e.OppositeVertex;
+
+		PointNormal edgeMiddle = e.MiddlePoint;
+		float pivotingRadius = e.PivotingRadius;
+
+		Vector3 middle = edgeMiddle.AsVector3();
+		Vector3 diff1 = 100 * (v0.Item1.AsVector3() - middle);
+		Vector3 diff2 = 100 * (e.BallCenter.AsVector3() - middle);
+
+		Vector3 y = Vector3.Cross(diff1, diff2).normalized;
+		Vector3 normal = Vector3.Cross(diff2, y).normalized;
+		HyperPlane plane = new HyperPlane(normal, middle);
+
+		Vector3 zeroAngle = (op.Item1.AsVector3() - middle).normalized;
+		zeroAngle = plane.Projection(zeroAngle).normalized;
+
+		float currentAngle = Mathf.PI;
+		Tuple<int, Triangle> output = null;
+
+		List<int> indices = GetNeighbors(edgeMiddle, ballRadius * 2);
+		for (int t = 0; t < indices.Count; t++) {
+			int index = indices[t];
+			if (v0.Item2 == index || v1.Item2 == index || op.Item2 == index)
+				continue;
+
+			Vector3 point = cloud[index].AsVector3();
+			if(plane.AbsDistance(point) <= ballRadius) {
+				Vector3 center;
+				Vector3Int sequence;
+				if(GetBallCenter(v0.Item2, v1.Item2, index, out center, out sequence)) {
+					PointNormal ballCenter = new PointNormal(center.x, center.y, center.z);
+					List<int> neighborhood = GetNeighbors(ballCenter, ballRadius);
+					if (!isEmpty(neighborhood, v0.Item2, v1.Item2, index, center))
+						continue;
+
+					Vector3 Vij = v1.Item1.AsVector3() - v0.Item1.AsVector3();
+					Vector3 Vik = point - v0.Item1.AsVector3();
+					Vector3 faceNormal = Vector3.Cross(Vik, Vij).normalized;
+
+					if (!IsOriented(faceNormal, v0.Item1.AsVector3(), v1.Item1.AsVector3(), cloud[index].AsVector3()))
+						continue;
+
+					float cosAngle = zeroAngle.Dot(plane.Projection(center).normalized);
+					if(Mathf.Abs(cosAngle) > 1.0f) {
+						cosAngle = Mathf.Sign(cosAngle);
+					}
+
+					float angle = Mathf.Acos(cosAngle);
+
+					if(output == null || currentAngle > angle) {
+						currentAngle = angle;
+						output = new Tuple<int, Triangle>(index, new Triangle(v0.Item1, cloud[index], v1.Item1, v0.Item2, index, v1.Item2, new PointNormal(center.x, center.y, center.z), ballRadius));
+					}
+				}
+			}
+		}
+
+		return output;
 	}
 
 	internal Triangle FindSeed() {

@@ -523,6 +523,27 @@ namespace renge_pcl {
 		}
 	}
 
+	public class HyperPlane {
+		Vector3 normal;
+		float offset;
+		public HyperPlane(Vector3 n, Vector3 e) {
+			normal = n;
+			offset = -n.Dot(e);
+		}
+
+		public Vector3 Projection(Vector3 p) {
+			return p - SignedDistance(p) * normal;
+		}
+
+		public float SignedDistance(Vector3 p) {
+			return normal.Dot(p) + offset;
+		}
+
+		public float AbsDistance(Vector3 p) {
+			return Mathf.Abs(SignedDistance(p));
+		}
+	}
+
 	public static class MyExtensions {
 		//Source:
 		//https://github.com/mcraiha/CSharp-nth_element
