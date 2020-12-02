@@ -9,13 +9,16 @@ using renge_pcl;
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
 	PointCloud<PointNormal> cloud;
-	float ballRadius;
+	float ballRadius = 5;
 	List<Triangle> preMesh;
 	Pivoter pivoter;
 	Mesh mesh;
+	MeshFilter meshFilter;
 
 	private void Start() {
 		preMesh = new List<Triangle>();
+		mesh = new Mesh();
+		meshFilter = GetComponent<MeshFilter>();
 
 		//generate a sphere of points for testing purposes
 		cloud = new PointCloud<PointNormal>(100);
@@ -32,6 +35,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 	void RunBallPivot() {
 		pivoter = new Pivoter(cloud, ballRadius);
+		f = new Front();
+
 		while (true) {
 			Edge e;
 			while((e = f.GetActiveEdge()) != null) {
@@ -54,6 +59,9 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	}
 
 	void MakeMesh() {
+		if (meshFilter == null) meshFilter = GetComponent<MeshFilter>();
+		if (mesh == null) mesh = new Mesh();
+
 		Vector3[] vertices = new Vector3[cloud.Count];
 		int[] tris = new int[preMesh.Count * 3];
 
@@ -70,6 +78,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		mesh.vertices = vertices;
 		mesh.triangles = tris;
 		mesh.RecalculateNormals();
+
+		meshFilter.mesh = mesh;
 	}
 }
 
@@ -88,8 +98,8 @@ class Triangle {
 
 	public Triangle(PointNormal p0, PointNormal p1, PointNormal p2, int index0, int index1, int index2, PointNormal ballCenter, float ballRadius) {
 		First = new Tuple<PointNormal, int>(p0, index0);
-		First = new Tuple<PointNormal, int>(p1, index1);
-		First = new Tuple<PointNormal, int>(p2, index2);
+		Second = new Tuple<PointNormal, int>(p1, index1);
+		Third = new Tuple<PointNormal, int>(p2, index2);
 		BallCenter = ballCenter;
 		BallRadius = ballRadius;
 	}
@@ -115,7 +125,7 @@ class Triangle {
 	}
 }
 
-class Edge {
+class Edge{
 	public Tuple<PointNormal, int> First { get; set; }
 	public Tuple<PointNormal, int> Second { get; set; }
 	public Tuple<PointNormal, int> OppositeVertex { get; set; }
@@ -162,9 +172,10 @@ class Edge {
 class Front {
 	LinkedList<Edge> front;
 	LinkedListNode<Edge> pos;
-	SortedDictionary<int, SortedDictionary<Edge, LinkedListNode<Edge>>> points;
+	SortedDictionary<int, Dictionary<Edge, LinkedListNode<Edge>>> points;
 
 	public Front() {
+		points = new SortedDictionary<int, Dictionary<Edge, LinkedListNode<Edge>>>();
 		front = new LinkedList<Edge>();
 		pos = front.First;
 	}
@@ -199,7 +210,7 @@ class Front {
 	}
 
 	internal bool InFront(int index) {
-		return points.TryGetValue(index, out _);
+		return points.ContainsKey(index);
 	}
 
 	internal void JoinAndGlue(Tuple<int, Triangle> tri, Pivoter pivoter) {
@@ -293,14 +304,14 @@ class Front {
 		//add first vertex
 		Tuple<PointNormal, int> data = edge.Value.First;
 		if (!points.ContainsKey(data.Item2)) {
-			points[data.Item2] = new SortedDictionary<Edge, LinkedListNode<Edge>>();
+			points[data.Item2] = new Dictionary<Edge, LinkedListNode<Edge>>();
 		}
 		points[data.Item2][edge.Value] = edge;
 
 		//add second vertex
 		data = edge.Value.Second;
 		if (!points.ContainsKey(data.Item2)) {
-			points[data.Item2] = new SortedDictionary<Edge, LinkedListNode<Edge>>();
+			points[data.Item2] = new Dictionary<Edge, LinkedListNode<Edge>>();
 		}
 		points[data.Item2][edge.Value] = edge;
 	}
@@ -339,6 +350,7 @@ class Pivoter {
 		this.cloud = cloud;
 		kdtree = new KDTree<PointNormal>();
 		kdtree.SetInputCloud(cloud);
+		notUsed = new SortedDictionary<int, bool>();
 
 		for (int i = 0; i < cloud.Count; i++) {
 			notUsed[i] = false;
@@ -411,7 +423,7 @@ class Pivoter {
 	internal Triangle FindSeed() {
 		float neighborhoodSize = 1.3f;
 
-		Triangle seed = new Triangle();
+		Triangle seed = null;
 		bool found = false;
 		SortedDictionary<ulong, bool> tested = new SortedDictionary<ulong, bool>();
 		List<int> removeIndices = new List<int>();
@@ -420,7 +432,7 @@ class Pivoter {
 			if (found) break;
 
 			int index0 = pair.Key;
-			if (pair.Value) continue;
+			if (removeIndices.Contains(index0)) continue;
 
 			List<int> indices = GetNeighbors(cloud[index0], ballRadius * neighborhoodSize);
 			if (indices.Count < 3)
@@ -430,15 +442,13 @@ class Pivoter {
 				if (!found) {
 					int index1 = indices[j];
 
-					bool tmpVal1;
-					if (index1 == index0 || !notUsed.TryGetValue(index1, out tmpVal1) || tmpVal1)
+					if (index1 == index0 || !notUsed.ContainsKey(index1) || removeIndices.Contains(index1))
 						continue;
 
 					for (int k = 0; k < indices.Count && !found; k++) {
 						int index2 = indices[k];
 
-						bool tmpVal2;
-						if (index1 == index2 || index2 == index0 || !notUsed.TryGetValue(index2, out tmpVal2) || tmpVal2)
+						if (index1 == index2 || index2 == index0 || !notUsed.ContainsKey(index2) || removeIndices.Contains(index2))
 							continue;
 
 						List<int> trio = new List<int>();
@@ -468,10 +478,6 @@ class Pivoter {
 								removeIndices.Add(index0);
 								removeIndices.Add(index1);
 								removeIndices.Add(index2);
-
-								notUsed[index0] = true;
-								notUsed[index1] = true;
-								notUsed[index2] = true;
 
 								found = true;
 							}

@@ -95,6 +95,7 @@ namespace renge_pcl {
 			MinPts = 1;
 			Sorted = sorted;
 			rootBBox_ = new List<Interval>();
+			rootNode_ = new Node();
 		}
 
 		public void SetInputCloud(PointCloud<T> cloud, List<int> indices = null) {
@@ -107,7 +108,7 @@ namespace renge_pcl {
 
 			ComputeBoundingBox(rootBBox_);
 
-			DivideTree(0, Cloud.Count, rootBBox_);
+			rootNode_ = DivideTree(0, Cloud.Count, rootBBox_);
 		}
 
 		public int RadiusSearch(T point, float radius, out List<int> indices, out List<float> dists) {
@@ -261,7 +262,7 @@ namespace renge_pcl {
 
 			float minElem, maxElem;
 			ComputeMinMax(ind, count, cutfeat, out minElem, out maxElem);
-			cutval = (minElem - maxElem) / 2;
+			cutval = (minElem + maxElem) / 2;
 			maxSpan = maxElem - minElem;
 
 			int k = cutfeat;
