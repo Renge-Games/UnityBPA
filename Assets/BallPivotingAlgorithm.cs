@@ -26,33 +26,17 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 					mesh.Add(t.Item2);
 					f.JoinAndGlue(t, pivoter);
 				} else {
-					MarkAsBoundary(e);
+					f.SetInactive(e);
 				}
 			}
 
 			Triangle tri;
-			if ((tri = FindSeedTriangle()) != null) {
+			if ((tri = pivoter.FindSeed()) != null) {
 				mesh.Add(tri);
 				f.AddEdges(tri);
 			} else
 				break;
 		}
-	}
-
-	private Triangle FindSeedTriangle() {
-		return null;
-	}
-
-	private void MarkAsBoundary(Edge e) {
-
-	}
-
-	private void Glue(Edge edge1, Edge edge2) {
-		
-	}
-
-	private void OutputTriangle(PointNormal p1, PointNormal p2, PointNormal p3) {
-		
 	}
 }
 
