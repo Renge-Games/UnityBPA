@@ -32,10 +32,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 			Triangle tri;
 			if ((tri = FindSeedTriangle()) != null) {
-				OutputTriangle(tri.First, tri.Second, tri.Third);
-				f.Insert(new Edge(tri.First, tri.Second));
-				f.Insert(new Edge(tri.Second, tri.Third));
-				f.Insert(new Edge(tri.Third, tri.First));
+				mesh.Add(tri);
+				f.AddEdges(tri);
 			} else
 				break;
 		}
@@ -59,16 +57,44 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 }
 
 class Triangle {
-	public PointNormal First { get; set; }
-	public PointNormal Second { get; set; }
-	public PointNormal Third { get; set; }
+	public Tuple<PointNormal, int> First { get; set; }
+	public Tuple<PointNormal, int> Second { get; set; }
+	public Tuple<PointNormal, int> Third { get; set; }
+	public PointNormal BallCenter { get; set; }
+	public float BallRadius { get; set; }
 
 	public Triangle() {
 		First = Second = Third = null;
+		BallCenter = null;
+		BallRadius = 0;
 	}
 
 	public Triangle(PointNormal p0, PointNormal p1, PointNormal p2, int index0, int index1, int index2, PointNormal ballCenter, float ballRadius) {
+		First = new Tuple<PointNormal, int>(p0, index0);
+		First = new Tuple<PointNormal, int>(p1, index1);
+		First = new Tuple<PointNormal, int>(p2, index2);
+		BallCenter = ballCenter;
+		BallRadius = ballRadius;
+	}
 
+	public Tuple<PointNormal, int> GetVertex(int index) {
+		switch (index) {
+			case 0:
+				return First;
+			case 1:
+				return Second;
+			case 2:
+				return Third;
+			default:
+				return null;
+		}
+	}
+
+	public Edge GetEdge(int index) {
+		int index0 = index % 3;
+		int index1 = (index + 1) % 3;
+		int index2 = (index + 2) % 3;
+		return new Edge(GetVertex(index0), GetVertex(index1), GetVertex(index2), BallCenter);
 	}
 }
 
@@ -102,6 +128,18 @@ class Edge {
 
 		Active = true;
 	}
+
+	public bool Equals(Edge edge) {
+		return First.Item2.Equals(edge.First.Item2) && Second.Item2.Equals(edge.Second.Item2) && OppositeVertex.Item2.Equals(edge.OppositeVertex.Item2);
+	}
+
+	public override bool Equals(object obj) {
+		return Equals(obj as Edge);
+	}
+
+	public override int GetHashCode() {
+		return First.Item2 ^ Second.Item2 ^ OppositeVertex.Item2;
+	}
 }
 
 class Front {
@@ -112,10 +150,6 @@ class Front {
 	public Front() {
 		front = new LinkedList<Edge>();
 		pos = front.First;
-	}
-
-	internal bool Contains(Edge edge) {
-		return false;
 	}
 
 	internal Edge GetActiveEdge() {
@@ -140,25 +174,15 @@ class Front {
 		return e;
 	}
 
-	internal void Insert(Edge edge) {
-		front.AddLast(edge);
-		AddEdgePoints(front.Last);
+	internal void AddEdges(Triangle tri) {
+		for (int i = 0; i < 3; i++) {
+			front.AddLast(tri.GetEdge(i));
+			AddEdgePoints(front.Last);
+		}
 	}
 
 	internal bool InFront(int index) {
-		return false;
-	}
-
-	private LinkedListNode<Edge> IsPresent(Edge edge) {
-		return null;
-	}
-
-	private void AddEdgePoints(LinkedListNode<Edge> edge) {
-
-	}
-
-	private void RemoveEdgePoints(Edge edge) {
-
+		return points.TryGetValue(index, out _);
 	}
 
 	internal void JoinAndGlue(Tuple<int, Triangle> triangle, Pivoter pivoter) {
@@ -167,6 +191,76 @@ class Front {
 			Glue(new Edge(p, e.First), new Edge(e.First, p));
 		if (f.Contains(new Edge(e.Second, p)))
 			Glue(new Edge(p, e.First), new Edge(p, e.First));
+	}
+
+	internal void SetInactive(Edge e) {
+		e.Active = false;
+		RemoveEdgePoints(e);
+		if(front.First == pos) {
+			front.Remove(pos);
+			pos = front.First;
+		} else {
+			var tmp = pos.Previous;
+			front.Remove(pos);
+			pos = tmp;
+		}
+	}
+
+	private LinkedListNode<Edge> IsPresent(Edge e) {
+		int vertex0 = e.First.Item2;
+		int vertex1 = e.Second.Item2;
+
+		if(!points.TryGetValue(vertex0, out _) || points.TryGetValue(vertex1, out _)) {
+			return null;
+		} else {
+			foreach (var pair in points[vertex1]) {
+				int v0 = pair.Value.Value.First.Item2;
+				int v1 = pair.Value.Value.Second.Item2;
+				if((v0 == vertex1 && v1 == vertex0) || (v0 == vertex0 && v1 == vertex1)) {
+					return pair.Value;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	private void AddEdgePoints(LinkedListNode<Edge> edge) {
+		//add first vertex
+		Tuple<PointNormal, int> data = edge.Value.First;
+		if (!points.ContainsKey(data.Item2)) {
+			points[data.Item2] = new SortedDictionary<Edge, LinkedListNode<Edge>>();
+		}
+		points[data.Item2][edge.Value] = edge;
+
+		//add second vertex
+		data = edge.Value.Second;
+		if (!points.ContainsKey(data.Item2)) {
+			points[data.Item2] = new SortedDictionary<Edge, LinkedListNode<Edge>>();
+		}
+		points[data.Item2][edge.Value] = edge;
+	}
+
+	private void RemoveEdgePoints(Edge edge) {
+		//remove first vertex
+		Tuple<PointNormal, int> data = edge.First;
+		if (points.ContainsKey(data.Item2)) {
+			points[data.Item2].Remove(edge);
+
+			if(points[data.Item2].Count == 0) {
+				points.Remove(data.Item2);
+			}
+		}
+
+		//remove second vertex
+		data = edge.Second;
+		if (points.ContainsKey(data.Item2)) {
+			points[data.Item2].Remove(edge);
+
+			if (points[data.Item2].Count == 0) {
+				points.Remove(data.Item2);
+			}
+		}
 	}
 }
 
