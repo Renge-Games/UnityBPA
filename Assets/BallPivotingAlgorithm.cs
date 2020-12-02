@@ -5,15 +5,29 @@ using UnityEngine;
 
 using renge_pcl;
 
+[RequireComponent(typeof(MeshFilter))]
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
 	PointCloud<PointNormal> cloud;
 	float ballRadius;
-	List<Triangle> mesh;
+	List<Triangle> preMesh;
 	Pivoter pivoter;
+	Mesh mesh;
 
 	private void Start() {
-		mesh = new List<Triangle>();
+		preMesh = new List<Triangle>();
+
+		//generate a sphere of points for testing purposes
+		cloud = new PointCloud<PointNormal>(100);
+		for (int i = 0; i < 100; i++) {
+			var point = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized * 10.0f;
+			cloud.Add(new PointNormal(point.x, point.y, point.z));
+		}
+
+		float time = Time.realtimeSinceStartup;
+		RunBallPivot();
+		MakeMesh();
+		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - time) + "s");
 	}
 
 	void RunBallPivot() {
@@ -23,7 +37,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 			while((e = f.GetActiveEdge()) != null) {
 				Tuple<int, Triangle> t = pivoter.Pivot(e);
 				if(t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))){
-					mesh.Add(t.Item2);
+					preMesh.Add(t.Item2);
 					f.JoinAndGlue(t, pivoter);
 				} else {
 					f.SetInactive(e);
@@ -32,11 +46,30 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 			Triangle tri;
 			if ((tri = pivoter.FindSeed()) != null) {
-				mesh.Add(tri);
+				preMesh.Add(tri);
 				f.AddEdges(tri);
 			} else
 				break;
 		}
+	}
+
+	void MakeMesh() {
+		Vector3[] vertices = new Vector3[cloud.Count];
+		int[] tris = new int[preMesh.Count * 3];
+
+		for (int i = 0; i < vertices.Length; i++) {
+			vertices[i] = cloud[i].AsVector3();
+		}
+		for (int i = 0; i < tris.Length-2; i+=3) {
+			tris[i] = preMesh[i].First.Item2;
+			tris[i + 1] = preMesh[i].Second.Item2;
+			tris[i + 2] = preMesh[i].Third.Item2;
+		}
+
+		mesh.Clear();
+		mesh.vertices = vertices;
+		mesh.triangles = tris;
+		mesh.RecalculateNormals();
 	}
 }
 
