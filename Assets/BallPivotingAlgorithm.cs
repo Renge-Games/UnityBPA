@@ -185,12 +185,59 @@ class Front {
 		return points.TryGetValue(index, out _);
 	}
 
-	internal void JoinAndGlue(Tuple<int, Triangle> triangle, Pivoter pivoter) {
-		//join
-		if (f.Contains(new Edge(e.First, p)))
-			Glue(new Edge(p, e.First), new Edge(e.First, p));
-		if (f.Contains(new Edge(e.Second, p)))
-			Glue(new Edge(p, e.First), new Edge(p, e.First));
+	internal void JoinAndGlue(Tuple<int, Triangle> tri, Pivoter pivoter) {
+		//join and glue prototype
+		//if (f.Contains(new Edge(e.First, p)))
+		//	Glue(new Edge(p, e.First), new Edge(e.First, p));
+		//if (f.Contains(new Edge(e.Second, p)))
+		//	Glue(new Edge(p, e.First), new Edge(p, e.First));
+
+		if (!pivoter.IsUsed(tri.Item1)) {
+			for (int i = 0; i < 2; i++) {
+				Edge e = tri.Item2.GetEdge(i);
+				LinkedListNode<Edge> insertionPlace = front.AddBefore(pos, e);
+				AddEdgePoints(insertionPlace);
+			}
+
+			RemoveEdgePoints(pos.Value);
+			var tmp = pos.Next;
+			front.Remove(pos);
+			//move iterator to first added edge
+			pos = tmp.Previous.Previous;
+
+			pivoter.SetUsed(tri.Item1);
+		} else if (InFront(tri.Item1)) {
+			int added = 0;
+			for (int i = 0; i < 2; i++) {
+				Edge e = tri.Item2.GetEdge(i);
+				LinkedListNode<Edge> it = IsPresent(e);
+				if(it != null) {
+					RemoveEdgePoints(it.Value);
+					front.Remove(it);
+				} else {
+					LinkedListNode<Edge> insertionPlace = front.AddBefore(pos, e);
+					AddEdgePoints(insertionPlace);
+					added--;
+				}
+			}
+
+			var tmp = pos.Next;
+			RemoveEdgePoints(pos.Value);
+			pos = tmp;
+
+			if (added < 0) {
+				while (added < 0) {
+					pos = pos.Previous;
+					added++;
+				}
+			} else {
+				pos = front.First;
+			}
+
+
+		} else {
+			SetInactive(pos.Value);
+		}
 	}
 
 	internal void SetInactive(Edge e) {
