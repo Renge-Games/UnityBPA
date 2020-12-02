@@ -454,7 +454,7 @@ public class Delaunay : MonoBehaviour {
 			Gizmos.DrawWireMesh(item);
 		}
 
-		if (tetras == null) return;
+		if (tetras == null || tetras.Count == 0) return;
 		Gizmos.DrawWireSphere(tetras[circumIndex % tetras.Count].Circumcenter, tetras[circumIndex % tetras.Count].Circumradius);
 		Gizmos.color = Color.cyan;
 		Gizmos.DrawSphere(tetras[circumIndex % tetras.Count].Circumcenter, 0.1f);
