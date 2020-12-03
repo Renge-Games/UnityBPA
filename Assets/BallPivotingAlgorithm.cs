@@ -15,13 +15,21 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	Mesh mesh;
 	MeshFilter meshFilter;
 
-	private void Start() {
+	private void Awake() {
+		MeshRenderer rend = GetComponent<MeshRenderer>();
+		rend.sharedMaterial = new Material(Shader.Find("Standard"));
 		preMesh = new List<Triangle>();
 		mesh = new Mesh();
 		meshFilter = GetComponent<MeshFilter>();
 
 		//generate a sphere of points for testing purposes
 		cloud = new PointCloud<PointNormal>(100);
+		//cloud.Add(new PointNormal(0, 0, 0));
+		//cloud.Add(new PointNormal(1, 0, 0));
+		//cloud.Add(new PointNormal(0, 0, 1));
+		//cloud.Add(new PointNormal(2, 1, 2));
+		//cloud.Add(new PointNormal(0.8f, 2.5f, 3));
+
 		for (int i = 0; i < 100; i++) {
 			var point = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized * 10.0f;
 			cloud.Add(new PointNormal(point.x, point.y, point.z));
@@ -31,6 +39,15 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		RunBallPivot();
 		MakeMesh();
 		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - time) + "s");
+		Debug.Log("Tris:" + preMesh.Count);
+	}
+
+	public PointCloud<PointNormal> GetPointCloud() {
+		return cloud;
+	}
+
+	public Mesh GetMesh() {
+		return mesh;
 	}
 
 	void RunBallPivot() {
@@ -69,9 +86,9 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 			vertices[i] = cloud[i].AsVector3();
 		}
 		for (int i = 0; i < tris.Length-2; i+=3) {
-			tris[i] = preMesh[i].First.Item2;
-			tris[i + 1] = preMesh[i].Second.Item2;
-			tris[i + 2] = preMesh[i].Third.Item2;
+			tris[i] = preMesh[i/3].First.Item2;
+			tris[i + 1] = preMesh[i/3].Second.Item2;
+			tris[i + 2] = preMesh[i/3].Third.Item2;
 		}
 
 		mesh.Clear();
