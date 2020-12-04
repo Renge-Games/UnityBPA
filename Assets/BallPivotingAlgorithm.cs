@@ -9,7 +9,7 @@ using renge_pcl;
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
 	PointCloud<PointNormal> cloud;
-	float ballRadius = 100;
+	float ballRadius = 2;
 	List<Triangle> preMesh;
 	Pivoter pivoter;
 	Mesh mesh;
@@ -23,18 +23,18 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		meshFilter = GetComponent<MeshFilter>();
 
 		//generate a sphere of points for testing purposes
-		cloud = new PointCloud<PointNormal>(5);
-		cloud.Add(new PointNormal(0, 0, 0, -0.3f, -0.7f, -0.3f).GetNormalized());
-		cloud.Add(new PointNormal(1, 0, 0, 0.2f, -0.7f, -0.3f).GetNormalized());
-		cloud.Add(new PointNormal(0, 0, 1, -0.4f, -0.8f, -0.2f).GetNormalized());
-		cloud.Add(new PointNormal(2, 1, 2, 0.9f, -0.1f, 0).GetNormalized());
-		cloud.Add(new PointNormal(0.8f, 2.5f, 3, -0.1f, 0.3f, 0.7f).GetNormalized());
+		cloud = new PointCloud<PointNormal>(1000);
+		//cloud.Add(new PointNormal(0, 0, 0, -0.3f, -0.7f, -0.3f).GetNormalized());
+		//cloud.Add(new PointNormal(1, 0, 0, 0.2f, -0.7f, -0.3f).GetNormalized());
+		//cloud.Add(new PointNormal(0, 0, 1, -0.4f, -0.8f, -0.2f).GetNormalized());
+		//cloud.Add(new PointNormal(2, 1, 2, 0.9f, -0.1f, 0).GetNormalized());
+		//cloud.Add(new PointNormal(0.8f, 2.5f, 3, -0.1f, 0.3f, 0.7f).GetNormalized());
 
-		//for (int i = 0; i < 10; i++) {
-		//	var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-		//	var point = normal * 2.0f;
-		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
-		//}
+		for (int i = 0; i < 1000; i++) {
+			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+			var point = normal * 10.0f;
+			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		}
 
 		float time = Time.realtimeSinceStartup;
 		RunBallPivot();
@@ -245,11 +245,20 @@ class Front {
 				AddEdgePoints(insertionPlace);
 			}
 
+			bool atEnd = false;
 			RemoveEdgePoints(pos.Value);
 			var tmp = pos.Next;
+			if(tmp == null) {
+				tmp = pos.Previous;
+				atEnd = true;
+			}
 			front.Remove(pos);
 			//move iterator to first added edge
-			pos = tmp.Previous.Previous;
+			if (!atEnd)
+				pos = tmp.Previous.Previous;
+			else
+				pos = tmp.Previous;
+
 
 			pivoter.SetUsed(tri.Item1);
 		} else if (InFront(tri.Item1)) {
