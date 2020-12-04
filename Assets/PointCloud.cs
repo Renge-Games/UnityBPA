@@ -519,6 +519,18 @@ namespace renge_pcl {
 			this.Curvature = curvature;
 		}
 
+		internal void NormalizeNormal() {
+			Vector3 n = NormalAsVector3().normalized;
+			nx = n.x;
+			ny = n.y;
+			nz = n.z;
+		}
+
+		internal PointNormal GetNormalized() {
+			Vector3 n = NormalAsVector3().normalized;
+			return new PointNormal(x, y, z, n.x, n.y, n.z);
+		}
+
 		internal Vector3 NormalAsVector3() {
 			return new Vector3(ndata[0], ndata[1], ndata[2]);
 		}

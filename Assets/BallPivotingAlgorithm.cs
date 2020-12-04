@@ -9,7 +9,7 @@ using renge_pcl;
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
 	PointCloud<PointNormal> cloud;
-	float ballRadius = 5;
+	float ballRadius = 100;
 	List<Triangle> preMesh;
 	Pivoter pivoter;
 	Mesh mesh;
@@ -23,17 +23,18 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		meshFilter = GetComponent<MeshFilter>();
 
 		//generate a sphere of points for testing purposes
-		cloud = new PointCloud<PointNormal>(100);
-		//cloud.Add(new PointNormal(0, 0, 0));
-		//cloud.Add(new PointNormal(1, 0, 0));
-		//cloud.Add(new PointNormal(0, 0, 1));
-		//cloud.Add(new PointNormal(2, 1, 2));
-		//cloud.Add(new PointNormal(0.8f, 2.5f, 3));
+		cloud = new PointCloud<PointNormal>(5);
+		cloud.Add(new PointNormal(0, 0, 0, -0.3f, -0.7f, -0.3f).GetNormalized());
+		cloud.Add(new PointNormal(1, 0, 0, 0.2f, -0.7f, -0.3f).GetNormalized());
+		cloud.Add(new PointNormal(0, 0, 1, -0.4f, -0.8f, -0.2f).GetNormalized());
+		cloud.Add(new PointNormal(2, 1, 2, 0.9f, -0.1f, 0).GetNormalized());
+		cloud.Add(new PointNormal(0.8f, 2.5f, 3, -0.1f, 0.3f, 0.7f).GetNormalized());
 
-		for (int i = 0; i < 100; i++) {
-			var point = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized * 10.0f;
-			cloud.Add(new PointNormal(point.x, point.y, point.z));
-		}
+		//for (int i = 0; i < 10; i++) {
+		//	var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+		//	var point = normal * 2.0f;
+		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		//}
 
 		float time = Time.realtimeSinceStartup;
 		RunBallPivot();
@@ -302,7 +303,7 @@ class Front {
 		int vertex0 = e.First.Item2;
 		int vertex1 = e.Second.Item2;
 
-		if(!points.TryGetValue(vertex0, out _) || points.TryGetValue(vertex1, out _)) {
+		if(!points.ContainsKey(vertex0) || !points.ContainsKey(vertex1)) {
 			return null;
 		} else {
 			foreach (var pair in points[vertex1]) {
