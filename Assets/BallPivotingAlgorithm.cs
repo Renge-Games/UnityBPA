@@ -9,7 +9,7 @@ using renge_pcl;
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
 	PointCloud<PointNormal> cloud;
-	float ballRadius = 2;
+	float ballRadius = 10;
 	List<Triangle> preMesh;
 	Pivoter pivoter;
 	Mesh mesh;
@@ -245,8 +245,9 @@ class Front {
 				AddEdgePoints(insertionPlace);
 			}
 
-			bool atEnd = false;
 			RemoveEdgePoints(pos.Value);
+
+			bool atEnd = false;
 			var tmp = pos.Next;
 			if(tmp == null) {
 				tmp = pos.Previous;
