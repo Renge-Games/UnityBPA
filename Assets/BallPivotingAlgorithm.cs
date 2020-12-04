@@ -268,7 +268,12 @@ class Front {
 			}
 
 			var tmp = pos.Next;
+			if (tmp == null) {
+				tmp = pos.Previous;
+				added++;
+			}
 			RemoveEdgePoints(pos.Value);
+			front.Remove(pos);
 			pos = tmp;
 
 			if (added < 0) {
