@@ -16,8 +16,7 @@ public class VoxelRenderer : MonoBehaviour {
         system = GetComponent<ParticleSystem>();
     }
 
-    public void SetFromBPAlg1(BallPivotingAlgorithm bpa) {
-        var pcl = bpa.GetPointCloud();
+    public void SetFromPointCloud(renge_pcl.PointCloud<renge_pcl.PointNormal> pcl)  {
 
         Vector3[] positions = new Vector3[pcl.Count];
         Color[] colors = new Color[pcl.Count];

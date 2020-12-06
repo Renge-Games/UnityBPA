@@ -48,6 +48,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
 		}
 
+		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
+
 		float time = Time.realtimeSinceStartup;
 		RunBallPivot();
 		MakeMesh();
