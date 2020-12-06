@@ -7,13 +7,9 @@ public class RunBPAlg : MonoBehaviour {
 
 	void Start() {
 		BallPivotingAlgorithm bpa1;
-		BallPivotingAlgorithm1 bpa2;
 		if(BPAlgObject.TryGetComponent(out bpa1)) {
 			Debug.Log("Running first BP Alg...");
-			bpa1.Run(100, 3);
-		} else if(BPAlgObject.TryGetComponent(out bpa2)){
-			Debug.Log("Running second BP Alg...");
-			bpa2.Run(100, 3);
+			bpa1.Run(10000, 0.4f);
 		}
 	}
 }

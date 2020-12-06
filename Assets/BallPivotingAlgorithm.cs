@@ -15,6 +15,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	Pivoter pivoter;
 	Mesh mesh;
 	MeshFilter meshFilter;
+	float startTime;
 
 	private void Awake() {
 		MeshRenderer rend = GetComponent<MeshRenderer>();
@@ -34,31 +35,40 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 	public void Run(int numPoints, float radius) {
 		ballRadius = radius;
+		mesh = meshFilter.mesh;
 		//generate a sphere of points for testing purposes
-		cloud = new PointCloud<PointNormal>(numPoints);
+		cloud = new PointCloud<PointNormal>(mesh.vertexCount);
 		//cloud.Add(new PointNormal(0, 0, 0, -0.3f, -0.7f, -0.3f).GetNormalized());
 		//cloud.Add(new PointNormal(1, 0, 0, 0.2f, -0.7f, -0.3f).GetNormalized());
 		//cloud.Add(new PointNormal(0, 0, 1, -0.4f, -0.8f, -0.2f).GetNormalized());
 		//cloud.Add(new PointNormal(2, 1, 2, 0.9f, -0.1f, 0).GetNormalized());
 		//cloud.Add(new PointNormal(0.8f, 2.5f, 3, -0.1f, 0.3f, 0.7f).GetNormalized());
 
-		for (int i = 0; i < numPoints; i++) {
-			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-			var point = normal * 10.0f;
-			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		for (int i = 0; i < mesh.vertexCount; i++) {
+			var v = mesh.vertices[i];
+			var n = mesh.normals[i];
+			cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
 		}
+
+		//for (int i = 0; i < numPoints; i++) {
+		//	var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+		//	var point = normal * 10.0f;
+		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		//}
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
 
-		float time = Time.realtimeSinceStartup;
+		startTime = Time.realtimeSinceStartup;
 		RunBallPivot();
 		MakeMesh();
-		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - time) + "s");
+		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		Debug.Log("Tris:" + preMesh.Count);
+		Debug.Log("Cumulative radius search time: " + pivoter.cumulSearchTime + "s");
 	}
 
 	void RunBallPivot() {
 		pivoter = new Pivoter(cloud, ballRadius);
+		Debug.Log("Octree initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		f = new Front();
 
 		while (true) {
@@ -307,16 +317,21 @@ namespace renge_bpa1 {
 	}
 
 	class Pivoter {
-		KDTree<PointNormal> kdtree;
+		//KDTree<PointNormal> kdtree;
+		OcTree<PointNormal> octree;
 		PointCloud<PointNormal> cloud;
 		float ballRadius;
 		SortedDictionary<int, bool> notUsed;
+		public float cumulSearchTime;
 
 		public Pivoter(PointCloud<PointNormal> cloud, float ballRadius) {
 			this.ballRadius = ballRadius;
 			this.cloud = cloud;
-			kdtree = new KDTree<PointNormal>();
-			kdtree.SetInputCloud(cloud);
+			cumulSearchTime = 0;
+			//kdtree = new KDTree<PointNormal>();
+			//kdtree.SetInputCloud(cloud);
+			octree = new OcTree<PointNormal>();
+			octree.SetInputCloud(cloud, 10);
 			notUsed = new SortedDictionary<int, bool>();
 
 			for (int i = 0; i < cloud.Count; i++) {
@@ -560,7 +575,10 @@ namespace renge_bpa1 {
 
 		List<int> GetNeighbors(PointNormal point, float radius) {
 			List<int> indices;
-			kdtree.RadiusSearch(point, radius, out indices, out _);
+			//kdtree.RadiusSearch(point, radius, out indices, out _);
+			float time = Time.realtimeSinceStartup;
+			octree.RadiusSearch(point, radius, out indices);
+			cumulSearchTime += Time.realtimeSinceStartup - time;
 			return indices;
 		}
 	}

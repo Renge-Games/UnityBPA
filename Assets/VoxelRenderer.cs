@@ -12,7 +12,7 @@ public class VoxelRenderer : MonoBehaviour {
     public float voxelScale = 0.1f;
     public float scale = 1f;
 
-    private void Start() {
+    private void Awake() {
         system = GetComponent<ParticleSystem>();
     }
 

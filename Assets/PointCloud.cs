@@ -77,14 +77,13 @@ namespace renge_pcl {
 	}
 
 	public class KDTree<T> where T : Point {
-		public List<int> Indices { get; protected set; }
 		public PointCloud<T> Cloud { get; protected set; }
 		public float Epsilon { get; set; }
 		public int MinPts { get; set; }
 		public bool Sorted { get; set; }
 
 		public const int DIMENSION = 3;
-		const int LEAFMAXSIZE = 15;
+		const int LEAFMAXSIZE = 10;
 
 		List<int> vind_;
 		List<Interval> rootBBox_;
@@ -100,7 +99,6 @@ namespace renge_pcl {
 
 		public void SetInputCloud(PointCloud<T> cloud, List<int> indices = null) {
 			Cloud = cloud;
-			Indices = indices == null ? new List<int>() : indices;
 			vind_ = new List<int>();
 			for (int i = 0; i < cloud.Count; i++) {
 				vind_.Add(i);
