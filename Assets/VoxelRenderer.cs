@@ -14,34 +14,34 @@ public class VoxelRenderer : MonoBehaviour {
 
     private void Start() {
         system = GetComponent<ParticleSystem>();
+    }
 
-        //List<Vector3> positions = new List<Vector3>();
-        //List<Color> colors = new List<Color>();
-
-        //using (var sr = new StreamReader("Assets/vertebra.asc")) {
-        //    while (!sr.EndOfStream) {
-        //        string[] line = sr.ReadLine().Split(' ');
-        //        positions.Add(new Vector3(float.Parse(line[0]), float.Parse(line[1]), float.Parse(line[2])));
-        //        colors.Add(new Color(float.Parse(line[3]), float.Parse(line[4]), float.Parse(line[5])));
-        //    }
-        //}
-
-        BallPivotingAlgorithm bpa = GetComponent<BallPivotingAlgorithm>();
+    public void SetFromBPAlg1(BallPivotingAlgorithm bpa) {
         var pcl = bpa.GetPointCloud();
 
         Vector3[] positions = new Vector3[pcl.Count];
-		Color[] colors = new Color[pcl.Count];
+        Color[] colors = new Color[pcl.Count];
 
-		for (int i = 0; i < pcl.Count; i++) {
-			positions[i] = pcl[i].AsVector3();
-			colors[i] = new Color(Random.value, Random.value, Random.value);
-		}
-
-		
-
-
+        for (int i = 0; i < pcl.Count; i++) {
+            positions[i] = pcl[i].AsVector3();
+            colors[i] = new Color(Random.value, Random.value, Random.value);
+        }
         SetVoxels(positions, colors);
     }
+
+    public void SetFromASCFile(string filename) {
+		List<Vector3> positions = new List<Vector3>();
+		List<Color> colors = new List<Color>();
+
+		using (var sr = new StreamReader(filename)) {
+			while (!sr.EndOfStream) {
+				string[] line = sr.ReadLine().Split(' ');
+				positions.Add(new Vector3(float.Parse(line[0]), float.Parse(line[1]), float.Parse(line[2])));
+				colors.Add(new Color(float.Parse(line[3]), float.Parse(line[4]), float.Parse(line[5])));
+			}
+		}
+        SetVoxels(positions.ToArray(), colors.ToArray());
+	}
 
     private void Update() {
         if (voxelsUpdated) {

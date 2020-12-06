@@ -557,6 +557,114 @@ namespace renge_pcl {
 		}
 	}
 
+	class Triangle {
+		public Tuple<PointNormal, int> First { get; set; }
+		public Tuple<PointNormal, int> Second { get; set; }
+		public Tuple<PointNormal, int> Third { get; set; }
+		public PointNormal BallCenter { get; set; }
+		public float BallRadius { get; set; }
+
+		public Triangle() {
+			First = Second = Third = null;
+			BallCenter = null;
+			BallRadius = 0;
+		}
+
+		public Triangle(PointNormal p0, PointNormal p1, PointNormal p2, int index0, int index1, int index2, PointNormal ballCenter, float ballRadius) {
+			First = new Tuple<PointNormal, int>(p0, index0);
+			Second = new Tuple<PointNormal, int>(p1, index1);
+			Third = new Tuple<PointNormal, int>(p2, index2);
+			BallCenter = ballCenter;
+			BallRadius = ballRadius;
+		}
+
+		public Tuple<PointNormal, int> GetVertex(int index) {
+			switch (index) {
+				case 0:
+					return First;
+				case 1:
+					return Second;
+				case 2:
+					return Third;
+				default:
+					return null;
+			}
+		}
+
+		public Edge GetEdge(int index) {
+			int index0 = index % 3;
+			int index1 = (index + 1) % 3;
+			int index2 = (index + 2) % 3;
+			return new Edge(GetVertex(index0), GetVertex(index1), GetVertex(index2), BallCenter);
+		}
+
+		public bool Equals(Triangle tri) {
+			int a1 = First.Item2, b1 = Second.Item2, c1 = Third.Item2;
+			int a2 = tri.First.Item2, b2 = tri.Second.Item2, c2 = tri.Third.Item2;
+
+			return (a1 == a2 || a1 == b2 || a1 == c2) && (b1 == a2 || b1 == b2 || b1 == c2) && (c1 == a2 || c1 == b2 || c1 == c2);
+
+			//return First.Item2.Equals(tri.First.Item2) && Second.Item2.Equals(tri.Second.Item2) && Third.Item2.Equals(tri.Third.Item2);
+		}
+
+		public override bool Equals(object obj) {
+			return Equals(obj as Triangle);
+		}
+
+		public override int GetHashCode() {
+			return First.GetHashCode() ^ Second.GetHashCode() ^ Third.GetHashCode();
+		}
+	}
+
+	class Edge {
+		public Tuple<PointNormal, int> First { get; set; }
+		public Tuple<PointNormal, int> Second { get; set; }
+		public Tuple<PointNormal, int> OppositeVertex { get; set; }
+
+		public PointNormal BallCenter { get; private set; }
+		public PointNormal MiddlePoint { get; private set; }
+		public bool Active { get; set; }
+		public float PivotingRadius { get; private set; }
+
+
+		public Edge() {
+			First = Second = OppositeVertex = null;
+			BallCenter = MiddlePoint = null;
+			Active = false;
+			PivotingRadius = 0;
+		}
+
+		public Edge(Tuple<PointNormal, int> first, Tuple<PointNormal, int> second, Tuple<PointNormal, int> opposite, PointNormal ballCenter) {
+			First = first;
+			Second = second;
+			OppositeVertex = opposite;
+			BallCenter = ballCenter;
+			MiddlePoint = new PointNormal((First.Item1.x + Second.Item1.x) * 0.5f, (First.Item1.y + Second.Item1.y) * 0.5f, (First.Item1.z + Second.Item1.z) * 0.5f);
+			Vector3 m = new Vector3(MiddlePoint.x, MiddlePoint.y, MiddlePoint.z);
+			Vector3 c = new Vector3(BallCenter.x, BallCenter.y, BallCenter.z);
+			PivotingRadius = (m - c).magnitude;
+
+			Active = true;
+		}
+
+		public bool Equals(Edge edge) {
+			int a1 = First.Item2, b1 = Second.Item2, c1 = OppositeVertex.Item2;
+			int a2 = edge.First.Item2, b2 = edge.Second.Item2, c2 = edge.OppositeVertex.Item2;
+
+			return (a1 == a2 && b1 == b2 && c1 == c2) || (a1 == b2 && b1 == a2 && c1 == c2);
+
+			//return First.Item2.Equals(edge.First.Item2) && Second.Item2.Equals(edge.Second.Item2) && OppositeVertex.Item2.Equals(edge.OppositeVertex.Item2);
+		}
+
+		public override bool Equals(object obj) {
+			return Equals(obj as Edge);
+		}
+
+		public override int GetHashCode() {
+			return First.Item2 ^ Second.Item2 ^ OppositeVertex.Item2;
+		}
+	}
+
 	public static class MyExtensions {
 		//Source:
 		//https://github.com/mcraiha/CSharp-nth_element

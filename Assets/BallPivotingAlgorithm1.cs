@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 using renge_pcl;
-using renge_bpa1;
+using renge_bpa2;
 
 [RequireComponent(typeof(MeshFilter))]
-public class BallPivotingAlgorithm : MonoBehaviour {
+public class BallPivotingAlgorithm1 : MonoBehaviour {
 	Front f;
 	PointCloud<PointNormal> cloud;
 	float ballRadius = 3;
@@ -117,7 +117,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	}
 }
 
-namespace renge_bpa1 {
+namespace renge_bpa2 {
 
 	class Front {
 		LinkedList<Edge> front;
