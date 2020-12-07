@@ -25,6 +25,14 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		meshFilter = GetComponent<MeshFilter>();
 	}
 
+	private void OnDrawGizmos() {
+		if(cloud != null) {
+			for (int i = 0; i < cloud.Count; i++) {
+				Gizmos.DrawLine(cloud[i].AsVector3(), cloud[i].AsVector3() + cloud[i].NormalAsVector3(0.2f));
+			}
+		}
+	}
+
 	public PointCloud<PointNormal> GetPointCloud() {
 		return cloud;
 	}

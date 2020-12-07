@@ -529,8 +529,8 @@ namespace renge_pcl {
 			return new PointNormal(x, y, z, n.x, n.y, n.z);
 		}
 
-		internal Vector3 NormalAsVector3() {
-			return new Vector3(ndata[0], ndata[1], ndata[2]);
+		internal Vector3 NormalAsVector3(float scale = 1.0f) {
+			return new Vector3(ndata[0] * scale, ndata[1] * scale, ndata[2] * scale);
 		}
 	}
 
