@@ -72,6 +72,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		Debug.Log("Tris:" + preMesh.Count);
 		Debug.Log("Cumulative radius search time: " + pivoter.cumulSearchTime + "s");
+		Debug.Log("Total Searches: " + pivoter.totalSearches);
 	}
 
 	void RunBallPivot() {
@@ -330,11 +331,13 @@ class Pivoter {
 	float ballRadius;
 	SortedDictionary<int, bool> notUsed;
 	public float cumulSearchTime;
+	public int totalSearches;
 
 	public Pivoter(PointCloud<PointNormal> cloud, float ballRadius) {
 		this.ballRadius = ballRadius;
 		this.cloud = cloud;
 		cumulSearchTime = 0;
+		totalSearches = 0;
 		//kdtree = new KDTree<PointNormal>();
 		//kdtree.SetInputCloud(cloud);
 		//octree = new OcTree<PointNormal>();
@@ -585,6 +588,7 @@ class Pivoter {
 		List<int> indices;
 		//kdtree.RadiusSearch(point, radius, out indices, out _);
 		float time = Time.realtimeSinceStartup;
+		totalSearches++;
 		//octree.RadiusSearch(point, radius, out indices);
 		vgrid.RadiusSearch(point, radius, out indices);
 		cumulSearchTime += Time.realtimeSinceStartup - time;
