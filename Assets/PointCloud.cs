@@ -120,7 +120,11 @@ namespace renge_pcl {
 			for (int x = 0; x < 3; x++) {
 				for (int y = 0; y < 3; y++) {
 					for (int z = 0; z < 3; z++) {
-						List<int> query = voxels_[(index.x + x) + (index.y + y) * width_ + (index.z + z) * width_ * height_].Get();
+						int xi = (index.x + x);
+						int yi = (index.y + y);
+						int zi = (index.z + z);
+						if (xi >= width_ || xi < 0 || yi >= height_ || yi < 0 || zi >= depth_ || zi < 0) continue;
+						List<int> query = voxels_[xi + yi * width_ + zi * width_ * height_].Get();
 
 						foreach (var i in query) {
 							if ((point - cloud_[i]).SqrMag < sqrRadius) {
