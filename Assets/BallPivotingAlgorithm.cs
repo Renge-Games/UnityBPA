@@ -45,24 +45,24 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		ballRadius = radius;
 		mesh = meshFilter.mesh;
 		//generate a sphere of points for testing purposes
-		cloud = new PointCloud<PointNormal>(mesh.vertexCount);
+		cloud = new PointCloud<PointNormal>(numPoints);
 		//cloud.Add(new PointNormal(0, 0, 0, -0.3f, -0.7f, -0.3f).GetNormalized());
 		//cloud.Add(new PointNormal(1, 0, 0, 0.2f, -0.7f, -0.3f).GetNormalized());
 		//cloud.Add(new PointNormal(0, 0, 1, -0.4f, -0.8f, -0.2f).GetNormalized());
 		//cloud.Add(new PointNormal(2, 1, 2, 0.9f, -0.1f, 0).GetNormalized());
 		//cloud.Add(new PointNormal(0.8f, 2.5f, 3, -0.1f, 0.3f, 0.7f).GetNormalized());
 
-		for (int i = 0; i < mesh.vertexCount; i++) {
-			var v = mesh.vertices[i];
-			var n = mesh.normals[i];
-			cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
-		}
-
-		//for (int i = 0; i < numPoints; i++) {
-		//	var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-		//	var point = normal * 10.0f;
-		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		//for (int i = 0; i < mesh.vertexCount; i++) {
+		//	var v = mesh.vertices[i];
+		//	var n = mesh.normals[i];
+		//	cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
 		//}
+
+		for (int i = 0; i < numPoints; i++) {
+			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+			var point = normal * 10.0f;
+			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		}
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
 
@@ -103,14 +103,14 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 		}
 
-		for (int i = 0; i < preMesh.Count; i++) {
-			for (int j = i + 1; j < preMesh.Count; j++) {
-				if (preMesh[i] == preMesh[j]) {
-					preMesh.RemoveAt(j);
-					j--;
-				}
-			}
-		}
+		//for (int i = 0; i < preMesh.Count; i++) {
+		//	for (int j = i + 1; j < preMesh.Count; j++) {
+		//		if (preMesh[i] == preMesh[j]) {
+		//			preMesh.RemoveAt(j);
+		//			j--;
+		//		}
+		//	}
+		//}
 	}
 
 	void MakeMesh() {
