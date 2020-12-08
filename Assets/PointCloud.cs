@@ -36,7 +36,7 @@ using UnityEngine;
 
 namespace renge_pcl {
 	public class PointCloud<T>
-		where T : Point{
+		where T : Point {
 
 		public List<T> Points { get; set; }
 		public int Count { get; set; }
@@ -52,6 +52,8 @@ namespace renge_pcl {
 
 		public void Add(T p) {
 			Points.Add(p);
+			if (Count < Points.Count)
+				Count++;
 		}
 
 		public void Clear() {
@@ -59,20 +61,170 @@ namespace renge_pcl {
 			Count = 0;
 		}
 
-		public T Get(int index) {
-			if (index >= 0 && index < Count)
-				return Points[index];
-			else
-				return null;
-		}
-
-		public void Set(int index, T value) {
-			Points[index] = value;
-		}
-
 		public T this[int key] {
-			get => Get(key);
-			set => Set(key, value);
+			get {
+				return Points[key];
+			}
+			set {
+				Points[key] = value;
+			}
+		}
+	}
+
+	public class VoxelGrid<T> where T : Point {
+		PointCloud<T> cloud_;
+		float sideLength_;
+		int width_, height_, depth_;
+		BoundingBox rootBB_;
+		Voxel[] voxels_;
+
+		public VoxelGrid(PointCloud<T> cloud, float sideLength) {
+			cloud_ = cloud;
+			sideLength_ = sideLength;
+
+			CalculateBB();
+
+			width_ = (int)Math.Ceiling(rootBB_.SideLength.x / sideLength_);
+			height_ = (int)Math.Ceiling(rootBB_.SideLength.y / sideLength_);
+			depth_ = (int)Math.Ceiling(rootBB_.SideLength.z / sideLength_);
+
+
+
+			voxels_ = new Voxel[width_ * height_ * depth_];
+			for (int i = 0; i < voxels_.Length; i++) {
+				voxels_[i] = new Voxel();
+			}
+			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
+			for (int i = 0; i < cloud_.Count; i++) {
+				var p = cloud_[i];
+
+				int x = (int)((p.x / sideLength_) - min.x),
+					y = (int)((p.y / sideLength_) - min.y),
+					z = (int)((p.z / sideLength_) - min.z);
+
+				voxels_[x + width_ * y + width_ * height_ * z].Insert(i);
+			}
+		}
+
+		public int RadiusSearch(T point, float radius, out List<int> indices) {
+			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
+			Vector3 tmpIndex = (GetUnadjustedIndex(point) - min);
+			Vector3Int index = new Vector3Int((int)tmpIndex.x, (int)tmpIndex.y, (int)tmpIndex.z);
+			indices = new List<int>();
+
+			index -= new Vector3Int(1, 1, 1);
+			float sqrRadius = radius * radius;
+			for (int x = 0; x < 3; x++) {
+				for (int y = 0; y < 3; y++) {
+					for (int z = 0; z < 3; z++) {
+						List<int> query = voxels_[(index.x + x) + (index.y + y) * width_ + (index.z + z) * width_ * height_].Get();
+
+						foreach (var i in query) {
+							if((point - cloud_[i]).SqrMag < sqrRadius) {
+								indices.Add(i);
+							}
+						}
+					}
+				}
+			}
+
+			return indices.Count;
+		}
+
+		Vector3 GetUnadjustedIndex(T p) {
+			int x = (int)((p.x / sideLength_)),
+					y = (int)((p.y / sideLength_)),
+					z = (int)((p.z / sideLength_));
+
+			return new Vector3(x, y, z);
+		}
+
+		void CalculateBB() {
+			Vector3 min = new Vector3(), max = new Vector3();
+			for (int i = 0; i < cloud_.Count; i++) {
+				var p = cloud_[i];
+				if (min.x > p.x) min.x = p.x;
+				else if (max.x < p.x) max.x = p.x;
+
+				if (min.y > p.y) min.y = p.y;
+				else if (max.y < p.y) max.y = p.y;
+
+				if (min.z > p.z) min.z = p.z;
+				else if (max.z < p.z) max.z = p.z;
+			}
+
+			rootBB_ = new BoundingBox(max - (max - min) / 2, max - min);
+		}
+
+		class Voxel {
+			List<int> indices;
+			public int IndexCount { get; private set; }
+
+			public Voxel() {
+				indices = new List<int>();
+			}
+
+			public void Insert(int index) {
+				IndexCount++;
+				indices.Add(index);
+			}
+
+			public List<int> Get() {
+				return indices;
+			}
+
+			public int this[int key] {
+				get {
+					return indices[key];
+				}
+				set {
+					indices[key] = value;
+				}
+			}
+		}
+	}
+
+	class BoundingBox {
+		public Vector3 Center { get; private set; }
+		public Vector3 SideLength { get; private set; }
+		public Vector3 HalfLength { get; private set; }
+
+		public BoundingBox(Vector3 center, Vector3 sideLength) {
+			this.Center = center;
+			this.SideLength = sideLength;
+			HalfLength = sideLength / 2;
+		}
+
+		public bool Contains(Point point) {
+			if (point.x > Center.x + HalfLength.x || point.x < Center.x - HalfLength.x ||
+			point.y > Center.y + HalfLength.y || point.y < Center.y - HalfLength.y ||
+			point.z > Center.z + HalfLength.z || point.z < Center.z - HalfLength.z) {
+				return false;
+			}
+			return true;
+		}
+
+		public bool Contains(Point point, float radius) {
+			float x = Mathf.Max(Center.x - HalfLength.x, Mathf.Min(Center.x + HalfLength.x, point.x));
+			float y = Mathf.Max(Center.y - HalfLength.y, Mathf.Min(Center.y + HalfLength.y, point.y));
+			float z = Mathf.Max(Center.z - HalfLength.z, Mathf.Min(Center.z + HalfLength.z, point.z));
+
+			float dist = Mathf.Sqrt((x - point.x) * (x - point.x) +
+									(y - point.y) * (y - point.y) +
+									(z - point.z) * (z - point.z));
+			return dist < radius;
+		}
+
+		public Vector3Int GetOctantCoords(Point position) {
+			Vector3Int res = new Vector3Int();
+			res.x = (int)Math.Floor((position.x - Center.x) / HalfLength.x) + 1;
+			res.y = (int)Math.Floor((position.y - Center.y) / HalfLength.y) + 1;
+			res.z = (int)Math.Floor((position.z - Center.z) / HalfLength.z) + 1;
+			return res;
+		}
+
+		public BoundingBox GetOctantBoundingBox(int x, int y, int z) {
+			return new BoundingBox(Center + new Vector3((x * 2 - 1) * SideLength.x, (y * 2 - 1) * SideLength.y, (z * 2 - 1) * SideLength.z) / 4, HalfLength);
 		}
 	}
 
@@ -146,12 +298,12 @@ namespace renge_pcl {
 		}
 
 		void SearchLevel(ResultSet result, List<float> vec, Node node, float mindistsq, List<float> dists, float epsError) {
-			if(node.Child1 == null && node.Child2 == null) {
+			if (node.Child1 == null && node.Child2 == null) {
 				float worstDist = result.WorstDist();
 				for (int i = node.Left; i < node.Right; i++) {
 					Point point = Cloud[vind_[i]];
 					float dist = Distance(vec, point, DIMENSION);
-					if(dist < worstDist) {
+					if (dist < worstDist) {
 						result.AddPoint(dist, vind_[i]);
 					}
 				}
@@ -166,7 +318,7 @@ namespace renge_pcl {
 			Node bestChild;
 			Node otherChild;
 			float cutDist;
-			if((diff1 + diff2) < 0) {
+			if ((diff1 + diff2) < 0) {
 				bestChild = node.Child1;
 				otherChild = node.Child2;
 				cutDist = AccumDistance(val, node.DivHigh);
@@ -181,7 +333,7 @@ namespace renge_pcl {
 			float dst = dists[idx];
 			mindistsq = mindistsq + cutDist - dst;
 			dists[idx] = cutDist;
-			if(mindistsq*epsError <= result.WorstDist()) {
+			if (mindistsq * epsError <= result.WorstDist()) {
 				SearchLevel(result, vec, otherChild, mindistsq, dists, epsError);
 			}
 			dists[idx] = dst;
@@ -190,7 +342,7 @@ namespace renge_pcl {
 		Node DivideTree(int left, int right, List<Interval> bbox) {
 			Node node = new Node();
 
-			if((right - left) <= LEAFMAXSIZE) {
+			if ((right - left) <= LEAFMAXSIZE) {
 				node.Child1 = node.Child2 = null;
 				node.Left = left;
 				node.Right = right;
@@ -201,7 +353,7 @@ namespace renge_pcl {
 					interval.High = Cloud[left][i];
 					bbox[i] = interval;
 				}
-				for (int k = left+1; k < right; k++) {
+				for (int k = left + 1; k < right; k++) {
 					for (int i = 0; i < DIMENSION; i++) {
 						Interval interval = bbox[i];
 						if (Cloud[k][i] < bbox[i].Low) interval.Low = Cloud[k][i];
@@ -213,7 +365,7 @@ namespace renge_pcl {
 				int idx;
 				int cutfeat;
 				float cutval;
-				MiddleSplit(left, right-left, out idx, out cutfeat, out cutval, bbox);
+				MiddleSplit(left, right - left, out idx, out cutfeat, out cutval, bbox);
 
 				node.Divfeat = cutfeat;
 
@@ -229,7 +381,7 @@ namespace renge_pcl {
 				interval = rightBbox[cutfeat];
 				interval.Low = cutval;
 				rightBbox[cutfeat] = interval;
-				node.Child2 = DivideTree(left+idx, right, rightBbox);
+				node.Child2 = DivideTree(left + idx, right, rightBbox);
 
 				node.DivLow = leftBbox[cutfeat].High;
 				node.DivHigh = rightBbox[cutfeat].Low;
@@ -251,7 +403,7 @@ namespace renge_pcl {
 			cutval = (bbox[0].High + bbox[0].Low) / 2;
 			for (int i = 0; i < DIMENSION; i++) {
 				float span = bbox[i].High - bbox[i].Low;
-				if(span > maxSpan) {
+				if (span > maxSpan) {
 					maxSpan = span;
 					cutfeat = i;
 					cutval = (bbox[i].High + bbox[i].Low) / 2;
@@ -267,10 +419,10 @@ namespace renge_pcl {
 			for (int i = 0; i < DIMENSION; i++) {
 				if (i == k) continue;
 				float span = bbox[i].High - bbox[i].Low;
-				if(span > maxSpan) {
+				if (span > maxSpan) {
 					ComputeMinMax(ind, count, i, out minElem, out maxElem);
 					span = maxElem - minElem;
-					if(span > maxSpan) {
+					if (span > maxSpan) {
 						maxSpan = span;
 						cutfeat = i;
 						cutval = (minElem + maxElem) / 2;
@@ -303,7 +455,7 @@ namespace renge_pcl {
 			lim1 = left;
 			right = count - 1;
 
-			for(; ; ) {
+			for (; ; ) {
 				while (left <= right && Cloud[vind_[ind + left]][cutfeat] < cutval) ++left;
 				while (left <= right && Cloud[vind_[ind + right]][cutfeat] >= cutval) --right;
 				if (left > right) break;
@@ -373,7 +525,7 @@ namespace renge_pcl {
 		}
 
 		float AccumDistance(float a, float b) {
-			return (a-b)*(a-b);
+			return (a - b) * (a - b);
 		}
 
 		class Node {
@@ -458,9 +610,10 @@ namespace renge_pcl {
 	}
 
 	public class Point {
-		public float x { 
+		public float x {
 			get { return data[0]; }
-			set { data[0] = value; } }
+			set { data[0] = value; }
+		}
 		public float y {
 			get { return data[1]; }
 			set { data[1] = value; }
@@ -469,6 +622,8 @@ namespace renge_pcl {
 			get { return data[2]; }
 			set { data[2] = value; }
 		}
+
+		public float SqrMag { get { return x * x + y * y + z * z; } set { } }
 
 		float[] data;
 
@@ -487,6 +642,14 @@ namespace renge_pcl {
 			}
 		}
 
+		public static Point operator -(Point a, Point b) {
+			Point p = new Point(a.x, a.y, a.z);
+			p.x -= b.x;
+			p.y -= b.y;
+			p.z -= b.z;
+			return p;
+		}
+
 		public Vector3 AsVector3() {
 			return new Vector3(data[0], data[1], data[2]);
 		}
@@ -495,7 +658,8 @@ namespace renge_pcl {
 	public class PointNormal : Point {
 		public float nx {
 			get { return ndata[0]; }
-			set { ndata[0] = value; } }
+			set { ndata[0] = value; }
+		}
 		public float ny {
 			get { return ndata[1]; }
 			set { ndata[1] = value; }
