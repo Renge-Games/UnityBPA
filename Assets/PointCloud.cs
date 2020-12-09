@@ -106,7 +106,7 @@ namespace renge_pcl {
 			}
 		}
 
-		public int RadiusSearch(T point, float radius, out List<int> indices) {
+		public int RadiusSearch(Point point, float radius, out List<int> indices) {
 			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
 			Vector3Int index = new Vector3Int();
 			index.x = (int)((point.x - min.x) / sideLength_);
@@ -116,18 +116,21 @@ namespace renge_pcl {
 			indices = new List<int>();
 
 			index -= new Vector3Int(1, 1, 1);
-			float sqrRadius = radius * radius;
+			//float sqrRadius = radius * radius;
 			for (int x = 0; x < 3; x++) {
+				int xi = (index.x + x);
+				if (xi >= width_ || xi < 0) continue;
 				for (int y = 0; y < 3; y++) {
+					int yi = (index.y + y);
+					if (yi >= height_ || yi < 0) continue;
 					for (int z = 0; z < 3; z++) {
-						int xi = (index.x + x);
-						int yi = (index.y + y);
 						int zi = (index.z + z);
-						if (xi >= width_ || xi < 0 || yi >= height_ || yi < 0 || zi >= depth_ || zi < 0) continue;
+						if (zi >= depth_ || zi < 0) continue;
+
 						List<int> query = voxels_[xi + yi * width_ + zi * width_ * height_].Get();
 
-						foreach (var i in query) {
-							if ((point - cloud_[i]).SqrMag < sqrRadius) {
+						foreach (int i in query) {
+							if ((point - cloud_[i]).magnitude <= radius) {
 								indices.Add(i);
 							}
 						}
@@ -136,14 +139,6 @@ namespace renge_pcl {
 			}
 
 			return indices.Count;
-		}
-
-		Vector3 GetUnadjustedIndex(T p) {
-			int x = (int)((p.x / sideLength_)),
-					y = (int)((p.y / sideLength_)),
-					z = (int)((p.z / sideLength_));
-
-			return new Vector3(x, y, z);
 		}
 
 		void CalculateBB() {
@@ -160,7 +155,7 @@ namespace renge_pcl {
 				else if (max.z < p.z) max.z = p.z;
 			}
 
-			rootBB_ = new BoundingBox(max - (max - min) / 2, max - min);
+			rootBB_ = new BoundingBox(max - ((max - min) / 2), max - min);
 		}
 
 		class Voxel {
@@ -630,11 +625,13 @@ namespace renge_pcl {
 			set { data[2] = value; }
 		}
 
-		public float SqrMag { get { return x * x + y * y + z * z; } set { } }
+		public float SqrMag { get { return x * x + y * y + z * z; } }
+
+		public float Magnitude { get { return Mathf.Sqrt(SqrMag); } }
 
 		float[] data;
 
-		public Point(float x, float y, float z) {
+		public Point(float x = 0, float y = 0, float z = 0) {
 			data = new float[3];
 			data[0] = x;
 			data[1] = y;
@@ -649,12 +646,29 @@ namespace renge_pcl {
 			}
 		}
 
-		public static Point operator -(Point a, Point b) {
-			Point p = new Point(a.x, a.y, a.z);
+		public static Vector3 Cross(Point v1, Point v2) {
+			float x, y, z;
+			x = v1.y * v2.z - v2.y * v1.z;
+			y = (v1.x * v2.z - v2.x * v1.z) * -1;
+			z = v1.x * v2.y - v2.x * v1.y;
+			return new Vector3(x, y, z);
+		}
+
+		public static Vector3 operator -(Point a, Point b) {
+			Vector3 p = new Vector3(a.x, a.y, a.z);
 			p.x -= b.x;
 			p.y -= b.y;
 			p.z -= b.z;
 			return p;
+		}
+
+		public static Vector3 operator -(Point a, Vector3 b) {
+			Vector3 v = new Vector3(a.x, a.y, a.z);
+			return v - b;
+		}
+
+		public static Vector3 operator *(float a, Point b) {
+			return new Vector3(a * b.x, a * b.y, a * b.z);
 		}
 
 		public Vector3 AsVector3() {
@@ -714,14 +728,22 @@ namespace renge_pcl {
 		}
 
 		public Vector3 Projection(Vector3 p) {
-			return p - SignedDistance(p) * normal;
+			return (p - SignedDistance(p) * normal);
+		}
+
+		public Vector3 Projection<T>(T p) where T : Point {
+			return (p - SignedDistance(p) * normal);
 		}
 
 		public float SignedDistance(Vector3 p) {
 			return normal.Dot(p) + offset;
 		}
 
-		public float AbsDistance(Vector3 p) {
+		public float SignedDistance<T>(T p) where T : Point{
+			return normal.Dot(p) + offset;
+		}
+
+		public float AbsDistance<T>(T p) where T : Point{
 			return Mathf.Abs(SignedDistance(p));
 		}
 	}
@@ -730,7 +752,7 @@ namespace renge_pcl {
 		public Tuple<PointNormal, int> First { get; set; }
 		public Tuple<PointNormal, int> Second { get; set; }
 		public Tuple<PointNormal, int> Third { get; set; }
-		public PointNormal BallCenter { get; set; }
+		public Point BallCenter { get; set; }
 		public float BallRadius { get; set; }
 
 		public Triangle() {
@@ -739,7 +761,7 @@ namespace renge_pcl {
 			BallRadius = 0;
 		}
 
-		public Triangle(PointNormal p0, PointNormal p1, PointNormal p2, int index0, int index1, int index2, PointNormal ballCenter, float ballRadius) {
+		public Triangle(PointNormal p0, PointNormal p1, PointNormal p2, int index0, int index1, int index2, Point ballCenter, float ballRadius) {
 			First = new Tuple<PointNormal, int>(p0, index0);
 			Second = new Tuple<PointNormal, int>(p1, index1);
 			Third = new Tuple<PointNormal, int>(p2, index2);
@@ -790,7 +812,7 @@ namespace renge_pcl {
 		public Tuple<PointNormal, int> Second { get; set; }
 		public Tuple<PointNormal, int> OppositeVertex { get; set; }
 
-		public PointNormal BallCenter { get; private set; }
+		public Point BallCenter { get; private set; }
 		public PointNormal MiddlePoint { get; private set; }
 		public bool Active { get; set; }
 		public float PivotingRadius { get; private set; }
@@ -803,7 +825,7 @@ namespace renge_pcl {
 			PivotingRadius = 0;
 		}
 
-		public Edge(Tuple<PointNormal, int> first, Tuple<PointNormal, int> second, Tuple<PointNormal, int> opposite, PointNormal ballCenter) {
+		public Edge(Tuple<PointNormal, int> first, Tuple<PointNormal, int> second, Tuple<PointNormal, int> opposite, Point ballCenter) {
 			First = first;
 			Second = second;
 			OppositeVertex = opposite;

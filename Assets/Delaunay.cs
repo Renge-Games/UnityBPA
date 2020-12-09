@@ -12,6 +12,14 @@ public static class Helper {
 	public static float Dot(this Vector3 v, Vector3 other) {
 		return v.x * other.x + v.y * other.y + v.z * other.z;
 	}
+
+	public static float Dot(this Vector3 v, renge_pcl.Point other) {
+		return v.x * other.x + v.y * other.y + v.z * other.z;
+	}
+
+	public static float NormalDot(this Vector3 v, renge_pcl.PointNormal other) {
+		return v.x * other.nx + v.y * other.ny + v.z * other.nz;
+	}
 }
 
 public class Matrix3x3 {

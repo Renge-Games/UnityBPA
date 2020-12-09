@@ -48,7 +48,7 @@ namespace renge_pcl {
 				}
 			}
 
-			public int RadiusSearch(T point, float radius, out List<int> indices) {
+			public int RadiusSearch(Point point, float radius, out List<int> indices) {
 				indices = new List<int>();
 
 				for (int x = 0; x < 2; ++x) {
@@ -172,7 +172,7 @@ namespace renge_pcl {
 					}
 				}
 
-				public List<int> RadiusSearch(J point, float radius) {
+				public List<int> RadiusSearch(Point point, float radius) {
 					List<int> indices = new List<int>();
 
 					if (bb.Contains(point, radius)) {

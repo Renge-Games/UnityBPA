@@ -285,7 +285,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 450382424}
-  m_Mesh: {fileID: -2432090755550338912, guid: 016f0cfebdff9644583ea073d609f9b2, type: 3}
+  m_Mesh: {fileID: -5676588575540745739, guid: a2504e3d378acd94eb81d949f3f3955d, type: 3}
 --- !u!4 &450382427
 Transform:
   m_ObjectHideFlags: 0
@@ -351,7 +351,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38440cc73ee014148bc024f881a7b981, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  voxelScale: 0.1
+  voxelScale: 0.02
   scale: 1
 --- !u!199 &450382430
 ParticleSystemRenderer:

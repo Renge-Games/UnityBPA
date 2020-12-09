@@ -41,16 +41,13 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		return mesh;
 	}
 
-	public void Run(int numPoints, float radius) {
+	public void Run(int numPoints, float scale, float radius) {
 		ballRadius = radius;
 		mesh = meshFilter.mesh;
 		//generate a sphere of points for testing purposes
+
+		//cloud = new PointCloud<PointNormal>(mesh.vertexCount);
 		cloud = new PointCloud<PointNormal>(numPoints);
-		//cloud.Add(new PointNormal(0, 0, 0, -0.3f, -0.7f, -0.3f).GetNormalized());
-		//cloud.Add(new PointNormal(1, 0, 0, 0.2f, -0.7f, -0.3f).GetNormalized());
-		//cloud.Add(new PointNormal(0, 0, 1, -0.4f, -0.8f, -0.2f).GetNormalized());
-		//cloud.Add(new PointNormal(2, 1, 2, 0.9f, -0.1f, 0).GetNormalized());
-		//cloud.Add(new PointNormal(0.8f, 2.5f, 3, -0.1f, 0.3f, 0.7f).GetNormalized());
 
 		//for (int i = 0; i < mesh.vertexCount; i++) {
 		//	var v = mesh.vertices[i];
@@ -60,7 +57,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 		for (int i = 0; i < numPoints; i++) {
 			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-			var point = normal * 10.0f;
+			var point = normal * scale;
 			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
 		}
 
@@ -325,8 +322,8 @@ class Front {
 
 class Pivoter {
 	//KDTree<PointNormal> kdtree;
-	//OcTree<PointNormal> octree;
-	VoxelGrid<PointNormal> vgrid;
+	OcTree<PointNormal> octree;
+	//VoxelGrid<PointNormal> vgrid;
 	PointCloud<PointNormal> cloud;
 	float ballRadius;
 	SortedDictionary<int, bool> notUsed;
@@ -340,9 +337,9 @@ class Pivoter {
 		totalSearches = 0;
 		//kdtree = new KDTree<PointNormal>();
 		//kdtree.SetInputCloud(cloud);
-		//octree = new OcTree<PointNormal>();
-		//octree.SetInputCloud(cloud, 10);
-		vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius);
+		octree = new OcTree<PointNormal>();
+		octree.SetInputCloud(cloud, 80);
+		//vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius * 2);
 		notUsed = new SortedDictionary<int, bool>();
 
 		for (int i = 0; i < cloud.Count; i++) {
@@ -359,30 +356,30 @@ class Pivoter {
 		float pivotingRadius = e.PivotingRadius;
 
 		Vector3 middle = edgeMiddle.AsVector3();
-		Vector3 diff1 = 100 * (v0.Item1.AsVector3() - middle);
-		Vector3 diff2 = 100 * (e.BallCenter.AsVector3() - middle);
+		//Vector3 diff1 = 100 * (v0.Item1.AsVector3() - middle);
+		//Vector3 diff2 = 100 * (e.BallCenter.AsVector3() - middle);
 
-		Vector3 y = Vector3.Cross(diff1, diff2).normalized;
-		Vector3 normal = Vector3.Cross(diff2, y).normalized;
+		//Vector3 y = Vector3.Cross(diff1, diff2).normalized;
+		//Vector3 normal = Vector3.Cross(diff2, y).normalized;
+		Vector3 normal = (v0.Item1 - edgeMiddle).normalized;
 		HyperPlane plane = new HyperPlane(normal, middle);
 
-		Vector3 zeroAngle = (op.Item1.AsVector3() - middle).normalized;
+		Vector3 zeroAngle = op.Item1 - edgeMiddle;
 		zeroAngle = plane.Projection(zeroAngle).normalized;
 
 		float currentAngle = Mathf.PI;
 		Tuple<int, Triangle> output = null;
 
-		List<int> indices = GetNeighbors(edgeMiddle, ballRadius * 2);
-		for (int t = 0; t < indices.Count; t++) {
+		int[] indices = GetNeighbors(edgeMiddle, pivotingRadius * 2).ToArray();
+		for (int t = 0; t < indices.Length; t++) {
 			int index = indices[t];
 			if (v0.Item2 == index || v1.Item2 == index || op.Item2 == index)
 				continue;
 
-			Vector3 point = cloud[index].AsVector3();
+			PointNormal point = cloud[index];
 			if (plane.AbsDistance(point) <= ballRadius) {
-				Vector3 center;
-				Vector3Int sequence;
-				if (GetBallCenter(v0.Item2, v1.Item2, index, out center, out sequence)) {
+				Point center;
+				if (GetBallCenter(v0.Item2, v1.Item2, index, out center, out _)) {
 					PointNormal ballCenter = new PointNormal(center.x, center.y, center.z);
 					List<int> neighborhood = GetNeighbors(ballCenter, ballRadius);
 					if (!isEmpty(neighborhood, v0.Item2, v1.Item2, index, center))
@@ -392,7 +389,7 @@ class Pivoter {
 					Vector3 Vik = point - v0.Item1.AsVector3();
 					Vector3 faceNormal = Vector3.Cross(Vik, Vij).normalized;
 
-					if (!IsOriented(faceNormal, v0.Item1.AsVector3(), v1.Item1.AsVector3(), cloud[index].AsVector3()))
+					if (!IsOriented(faceNormal, v0.Item1, v1.Item1, cloud[index]))
 						continue;
 
 					float cosAngle = zeroAngle.Dot(plane.Projection(center).normalized);
@@ -404,7 +401,7 @@ class Pivoter {
 
 					if (output == null || currentAngle > angle) {
 						currentAngle = angle;
-						output = new Tuple<int, Triangle>(index, new Triangle(v0.Item1, cloud[index], v1.Item1, v0.Item2, index, v1.Item2, new PointNormal(center.x, center.y, center.z), ballRadius));
+						output = new Tuple<int, Triangle>(index, new Triangle(v0.Item1, cloud[index], v1.Item1, v0.Item2, index, v1.Item2, center, ballRadius));
 					}
 				}
 			}
@@ -427,53 +424,50 @@ class Pivoter {
 			int index0 = pair.Key;
 			if (removeIndices.Contains(index0)) continue;
 
-			List<int> indices = GetNeighbors(cloud[index0], ballRadius * neighborhoodSize);
-			if (indices.Count < 3)
+			int[] indices = GetNeighbors(cloud[index0], ballRadius * neighborhoodSize).ToArray();
+			if (indices.Length < 3)
 				continue;
 
-			for (int j = 0; j < indices.Count; j++) {
-				if (!found) {
-					int index1 = indices[j];
+			for (int j = 0; j < indices.Length && !found; j++) {
+				int index1 = indices[j];
 
-					if (index1 == index0 || !notUsed.ContainsKey(index1) || removeIndices.Contains(index1))
+				if (index1 == index0 || !notUsed.ContainsKey(index1) || removeIndices.Contains(index1))
+					continue;
+
+				for (int k = j; k < indices.Length && !found; k++) {
+					int index2 = indices[k];
+
+					if (index1 == index2 || index2 == index0 || !notUsed.ContainsKey(index2) || removeIndices.Contains(index2))
 						continue;
 
-					for (int k = 0; k < indices.Count && !found; k++) {
-						int index2 = indices[k];
+					List<int> trio = new List<int>();
+					trio.Add(index0);
+					trio.Add(index1);
+					trio.Add(index2);
+					trio.Sort();
+					ulong code = Convert.ToUInt64(trio[0]) + Convert.ToUInt64(1e6 * trio[1]) + Convert.ToUInt64(1e12 * trio[2]);
 
-						if (index1 == index2 || index2 == index0 || !notUsed.ContainsKey(index2) || removeIndices.Contains(index2))
-							continue;
+					bool toContinue = false;
 
-						List<int> trio = new List<int>();
-						trio.Add(index0);
-						trio.Add(index1);
-						trio.Add(index2);
-						trio.Sort();
-						ulong code = Convert.ToUInt64(trio[0]) + Convert.ToUInt64(1e6 * trio[1]) + Convert.ToUInt64(1e12 * trio[2]);
+					if (tested.TryGetValue(code, out _)) toContinue = true;
+					else tested[code] = true;
 
-						bool toContinue = false;
+					if (toContinue) continue;
 
-						if (tested.TryGetValue(code, out _)) toContinue = true;
-						else tested[code] = true;
+					Point center;
+					Vector3Int sequence;
 
-						if (toContinue) continue;
+					if (!found && GetBallCenter(index0, index1, index2, out center, out sequence)) {
+						List<int> neighborhood = GetNeighbors(center, ballRadius);
+						if (!found && isEmpty(neighborhood, index0, index1, index2, center)) {
 
-						Vector3 center;
-						Vector3Int sequence;
+							seed = new Triangle(cloud[sequence[0]], cloud[sequence[1]], cloud[sequence[2]], sequence[0], sequence[1], sequence[2], center, ballRadius);
 
-						if (!found && GetBallCenter(index0, index1, index2, out center, out sequence)) {
-							PointNormal ballCenter = new PointNormal(center.x, center.y, center.z);
-							List<int> neighborhood = GetNeighbors(ballCenter, ballRadius);
-							if (!found && isEmpty(neighborhood, index0, index1, index2, center)) {
+							removeIndices.Add(index0);
+							removeIndices.Add(index1);
+							removeIndices.Add(index2);
 
-								seed = new Triangle(cloud[sequence[0]], cloud[sequence[1]], cloud[sequence[2]], sequence[0], sequence[1], sequence[2], ballCenter, ballRadius);
-
-								removeIndices.Add(index0);
-								removeIndices.Add(index1);
-								removeIndices.Add(index2);
-
-								found = true;
-							}
+							found = true;
 						}
 					}
 				}
@@ -498,7 +492,7 @@ class Pivoter {
 		notUsed.Remove(index);
 	}
 
-	Tuple<Vector3, float> GetCircumscribedCircle(Vector3 p0, Vector3 p1, Vector3 p2) {
+	Tuple<Vector3, float> GetCircumscribedCircle(Point p0, Point p1, Point p2) {
 		Vector3 d10 = p1 - p0;
 		Vector3 d20 = p2 - p0;
 		Vector3 d01 = p0 - p1;
@@ -522,13 +516,13 @@ class Pivoter {
 		return new Tuple<Vector3, float>(circumscribedCircleCenter, circumscribedCircleRadius);
 	}
 
-	bool GetBallCenter(int index0, int index1, int index2, out Vector3 center, out Vector3Int sequence) {
+	bool GetBallCenter(int index0, int index1, int index2, out Point center, out Vector3Int sequence) {
 		bool status = false;
-		center = new Vector3();
+		center = new Point(0, 0, 0);
 
-		Vector3 p0 = cloud[index0].AsVector3();
-		Vector3 p1 = cloud[index1].AsVector3();
-		Vector3 p2 = cloud[index2].AsVector3();
+		Point p0 = cloud[index0];
+		Point p1 = cloud[index1];
+		Point p2 = cloud[index2];
 		sequence = new Vector3Int(index0, index1, index2);
 
 		Vector3 v10 = p1 - p0;
@@ -537,9 +531,9 @@ class Pivoter {
 
 		if (normal.magnitude > 0.0000000001) {
 			normal.Normalize();
-			if (!IsOriented(normal, cloud[index0].NormalAsVector3(), cloud[index1].NormalAsVector3(), cloud[index2].NormalAsVector3())) {
-				p0 = cloud[index1].AsVector3();
-				p1 = cloud[index0].AsVector3();
+			if (!IsOriented(normal, cloud[index0], cloud[index1], cloud[index2])) {
+				p0 = cloud[index1];
+				p1 = cloud[index0];
 				sequence = new Vector3Int(index1, index0, index2);
 
 				v10 = p1 - p0;
@@ -551,7 +545,10 @@ class Pivoter {
 			float squaredDistance = ballRadius * ballRadius - circle.Item2 * circle.Item2;
 			if (squaredDistance > 0) {
 				float distance = Mathf.Sqrt(Mathf.Abs(squaredDistance));
-				center = circle.Item1 + distance * normal;
+				Vector3 v = circle.Item1 + distance * normal;
+				center.x = v.x;
+				center.y = v.y;
+				center.z = v.z;
 				status = true;
 			}
 		}
@@ -559,22 +556,22 @@ class Pivoter {
 		return status;
 	}
 
-	bool IsOriented(Vector3 normal, Vector3 normal0, Vector3 normal1, Vector3 normal2) {
+	bool IsOriented(Vector3 normal, PointNormal normal0, PointNormal normal1, PointNormal normal2) {
 		int count = 0;
-		count = normal0.Dot(normal) < 0 ? count + 1 : count;
-		count = normal1.Dot(normal) < 0 ? count + 1 : count;
-		count = normal2.Dot(normal) < 0 ? count + 1 : count;
+		count = normal.NormalDot(normal0) < 0 ? count + 1 : count;
+		count = normal.NormalDot(normal1) < 0 ? count + 1 : count;
+		count = normal.NormalDot(normal2) < 0 ? count + 1 : count;
 		return count <= 1;
 	}
 
-	bool isEmpty(List<int> data, int index0, int index1, int index2, Vector3 ballCenter) {
+	bool isEmpty(List<int> data, int index0, int index1, int index2, Point ballCenter) {
 		if (data == null || data.Count <= 0)
 			return true;
 
 		for (int i = 0; i < data.Count; i++) {
 			if (data[i] == index0 || data[i] == index1 || data[i] == index2)
 				continue;
-			Vector3 dist = cloud[data[i]].AsVector3() - ballCenter;
+			Vector3 dist = cloud[data[i]] - ballCenter;
 			if (Mathf.Abs(dist.magnitude - ballRadius) < 0.0000001)
 				continue;
 
@@ -584,13 +581,13 @@ class Pivoter {
 		return true;
 	}
 
-	List<int> GetNeighbors(PointNormal point, float radius) {
+	List<int> GetNeighbors(Point point, float radius) {
 		List<int> indices;
 		//kdtree.RadiusSearch(point, radius, out indices, out _);
 		float time = Time.realtimeSinceStartup;
 		totalSearches++;
-		//octree.RadiusSearch(point, radius, out indices);
-		vgrid.RadiusSearch(point, radius, out indices);
+		octree.RadiusSearch(point, radius, out indices);
+		//vgrid.RadiusSearch(point, radius, out indices);
 		cumulSearchTime += Time.realtimeSinceStartup - time;
 		return indices;
 	}
