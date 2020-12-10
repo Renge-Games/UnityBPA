@@ -1,4 +1,4 @@
-# UnityPointCloudTriangulation
+# UnityBPA
 Ball Pivoting Algorithm Implementation in Unity
 
 References:
