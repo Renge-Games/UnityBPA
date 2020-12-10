@@ -38,7 +38,7 @@ namespace renge_pcl {
 				TrySubdivide();
 
 				for (int i = 0; i < cloud.Count; i++) {
-					Point position = cloud[i];
+					Vector3 position = cloud[i].AsVector3();
 
 					if (!rootBB_.Contains(position))
 						continue;
@@ -48,7 +48,7 @@ namespace renge_pcl {
 				}
 			}
 
-			public int RadiusSearch(Point point, float radius, out List<int> indices) {
+			public int RadiusSearch(Vector3 point, float radius, out List<int> indices) {
 				indices = new List<int>();
 
 				for (int x = 0; x < 2; ++x) {
@@ -149,7 +149,7 @@ namespace renge_pcl {
 					}
 				}
 
-				public void AddPoint(Point position, int index, int maxSaturation) {
+				public void AddPoint(in Vector3 position, int index, int maxSaturation) {
 
 					if (!subdivided)
 						indices.Add(index);
@@ -162,8 +162,8 @@ namespace renge_pcl {
 						TrySubdivide();
 
 						foreach (var item in indices) {
-							Vector3Int xyz = bb.GetOctantCoords(points[item]);
-							branches[xyz.x, xyz.y, xyz.z].AddPoint(points[item], item, maxSaturation);
+							Vector3Int xyz = bb.GetOctantCoords(points[item].AsVector3());
+							branches[xyz.x, xyz.y, xyz.z].AddPoint(points[item].AsVector3(), item, maxSaturation);
 						}
 
 						indices = null;
@@ -172,13 +172,13 @@ namespace renge_pcl {
 					}
 				}
 
-				public List<int> RadiusSearch(Point point, float radius) {
+				public List<int> RadiusSearch(Vector3 point, float radius) {
 					List<int> indices = new List<int>();
 
 					if (bb.Contains(point, radius)) {
 						if (!subdivided) {
 							for (int i = 0; i < this.indices.Count; i++) {
-								if ((points[this.indices[i]].AsVector3() - point.AsVector3()).sqrMagnitude < radius * radius)
+								if ((points[this.indices[i]].AsVector3() - point).sqrMagnitude < radius * radius)
 									indices.Add(this.indices[i]);
 							}
 							return indices.Count > 0 ? indices : null;

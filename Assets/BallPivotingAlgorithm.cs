@@ -41,63 +41,69 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		return mesh;
 	}
 
-	public void Run(int numPoints, float scale, float radius) {
-		ballRadius = radius;
+	public void Run(int numPoints, float scale, float[] passes) {
+		startTime = Time.realtimeSinceStartup;
+
 		mesh = meshFilter.mesh;
 		//generate a sphere of points for testing purposes
 
-		//cloud = new PointCloud<PointNormal>(mesh.vertexCount);
-		cloud = new PointCloud<PointNormal>(numPoints);
+		cloud = new PointCloud<PointNormal>(mesh.vertexCount);
+		//cloud = new PointCloud<PointNormal>(numPoints);
 
-		//for (int i = 0; i < mesh.vertexCount; i++) {
-		//	var v = mesh.vertices[i];
-		//	var n = mesh.normals[i];
-		//	cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
-		//}
-
-		for (int i = 0; i < numPoints; i++) {
-			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-			var point = normal * scale;
-			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		for (int i = 0; i < mesh.vertexCount; i++) {
+			var v = mesh.vertices[i];
+			var n = mesh.normals[i];
+			cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
 		}
+
+		//for (int i = 0; i < numPoints; i++) {
+		//	var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+		//	var point = normal * scale;
+		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		//}
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
 
-		startTime = Time.realtimeSinceStartup;
-		RunBallPivot();
+		RunBallPivot(passes);
 		MakeMesh();
 		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		Debug.Log("Tris:" + preMesh.Count);
-		Debug.Log("Cumulative radius search time: " + pivoter.cumulSearchTime + "s");
 		Debug.Log("Total Searches: " + pivoter.totalSearches);
 	}
 
-	void RunBallPivot() {
-		pivoter = new Pivoter(cloud, ballRadius);
-		Debug.Log("Octree initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
+	void RunBallPivot(float[] passes) {
+		pivoter = new Pivoter(cloud, 0);
+		Debug.Log("Initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		startTime = Time.realtimeSinceStartup;
 		f = new Front();
 
-		while (true) {
-			Edge e;
-			while ((e = f.GetActiveEdge()) != null) {
-				Tuple<int, Triangle> t = pivoter.Pivot(e);
-				if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
-					preMesh.Add(t.Item2);
-					f.JoinAndGlue(t, pivoter);
-				} else {
-					f.SetInactive(e);
+		for (int i = 0; i < passes.Length; i++) {
+
+			ballRadius = passes[i];
+			pivoter.SetBallRadius(ballRadius);
+
+			while (true) {
+				Edge e;
+				while ((e = f.GetActiveEdge()) != null) {
+					Tuple<int, Triangle> t = pivoter.Pivot(e);
+					if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
+						preMesh.Add(t.Item2);
+						f.JoinAndGlue(t, pivoter);
+					} else {
+						f.SetInactive(e);
+					}
 				}
-			}
 
-			Triangle tri;
-			if ((tri = pivoter.FindSeed()) != null) {
-				preMesh.Add(tri);
-				f.AddEdges(tri);
-			} else {
-				pivoter.FindSeed();
-				break;
-			}
+				Triangle tri;
+				if ((tri = pivoter.FindSeed()) != null) {
+					preMesh.Add(tri);
+					f.AddEdges(tri);
+				} else {
+					pivoter.FindSeed();
+					break;
+				}
 
+			}
 		}
 
 		//for (int i = 0; i < preMesh.Count; i++) {
@@ -327,13 +333,11 @@ class Pivoter {
 	PointCloud<PointNormal> cloud;
 	float ballRadius;
 	SortedDictionary<int, bool> notUsed;
-	public float cumulSearchTime;
 	public int totalSearches;
 
 	public Pivoter(PointCloud<PointNormal> cloud, float ballRadius) {
 		this.ballRadius = ballRadius;
 		this.cloud = cloud;
-		cumulSearchTime = 0;
 		totalSearches = 0;
 		//kdtree = new KDTree<PointNormal>();
 		//kdtree.SetInputCloud(cloud);
@@ -347,30 +351,32 @@ class Pivoter {
 		}
 	}
 
+	public void SetBallRadius(float radius) {
+		this.ballRadius = radius;
+	}
+
 	internal Tuple<int, Triangle> Pivot(Edge e) {
 		Tuple<PointNormal, int> v0 = e.First;
 		Tuple<PointNormal, int> v1 = e.Second;
 		Tuple<PointNormal, int> op = e.OppositeVertex;
 
-		PointNormal edgeMiddle = e.MiddlePoint;
 		float pivotingRadius = e.PivotingRadius;
 
-		Vector3 middle = edgeMiddle.AsVector3();
 		//Vector3 diff1 = 100 * (v0.Item1.AsVector3() - middle);
 		//Vector3 diff2 = 100 * (e.BallCenter.AsVector3() - middle);
 
 		//Vector3 y = Vector3.Cross(diff1, diff2).normalized;
 		//Vector3 normal = Vector3.Cross(diff2, y).normalized;
-		Vector3 normal = (v0.Item1 - edgeMiddle).normalized;
-		HyperPlane plane = new HyperPlane(normal, middle);
+		Vector3 normal = (v0.Item1 - e.MiddlePoint).normalized;
+		HyperPlane plane = new HyperPlane(normal, e.MiddlePoint);
 
-		Vector3 zeroAngle = op.Item1 - edgeMiddle;
+		Vector3 zeroAngle = op.Item1 - e.MiddlePoint;
 		zeroAngle = plane.Projection(zeroAngle).normalized;
 
 		float currentAngle = Mathf.PI;
 		Tuple<int, Triangle> output = null;
 
-		int[] indices = GetNeighbors(edgeMiddle, pivotingRadius * 2).ToArray();
+		int[] indices = GetNeighbors(e.MiddlePoint, pivotingRadius * 2).ToArray();
 		for (int t = 0; t < indices.Length; t++) {
 			int index = indices[t];
 			if (v0.Item2 == index || v1.Item2 == index || op.Item2 == index)
@@ -378,10 +384,9 @@ class Pivoter {
 
 			PointNormal point = cloud[index];
 			if (plane.AbsDistance(point) <= ballRadius) {
-				Point center;
+				Vector3 center;
 				if (GetBallCenter(v0.Item2, v1.Item2, index, out center, out _)) {
-					PointNormal ballCenter = new PointNormal(center.x, center.y, center.z);
-					List<int> neighborhood = GetNeighbors(ballCenter, ballRadius);
+					List<int> neighborhood = GetNeighbors(center, ballRadius);
 					if (!isEmpty(neighborhood, v0.Item2, v1.Item2, index, center))
 						continue;
 
@@ -424,7 +429,7 @@ class Pivoter {
 			int index0 = pair.Key;
 			if (removeIndices.Contains(index0)) continue;
 
-			int[] indices = GetNeighbors(cloud[index0], ballRadius * neighborhoodSize).ToArray();
+			int[] indices = GetNeighbors(cloud[index0].AsVector3(), ballRadius * neighborhoodSize).ToArray();
 			if (indices.Length < 3)
 				continue;
 
@@ -454,7 +459,7 @@ class Pivoter {
 
 					if (toContinue) continue;
 
-					Point center;
+					Vector3 center;
 					Vector3Int sequence;
 
 					if (!found && GetBallCenter(index0, index1, index2, out center, out sequence)) {
@@ -516,9 +521,9 @@ class Pivoter {
 		return new Tuple<Vector3, float>(circumscribedCircleCenter, circumscribedCircleRadius);
 	}
 
-	bool GetBallCenter(int index0, int index1, int index2, out Point center, out Vector3Int sequence) {
+	bool GetBallCenter(int index0, int index1, int index2, out Vector3 center, out Vector3Int sequence) {
 		bool status = false;
-		center = new Point(0, 0, 0);
+		center = new Vector3();
 
 		Point p0 = cloud[index0];
 		Point p1 = cloud[index1];
@@ -545,10 +550,7 @@ class Pivoter {
 			float squaredDistance = ballRadius * ballRadius - circle.Item2 * circle.Item2;
 			if (squaredDistance > 0) {
 				float distance = Mathf.Sqrt(Mathf.Abs(squaredDistance));
-				Vector3 v = circle.Item1 + distance * normal;
-				center.x = v.x;
-				center.y = v.y;
-				center.z = v.z;
+				center = circle.Item1 + distance * normal;
 				status = true;
 			}
 		}
@@ -564,7 +566,7 @@ class Pivoter {
 		return count <= 1;
 	}
 
-	bool isEmpty(List<int> data, int index0, int index1, int index2, Point ballCenter) {
+	bool isEmpty(List<int> data, int index0, int index1, int index2, in Vector3 ballCenter) {
 		if (data == null || data.Count <= 0)
 			return true;
 
@@ -581,14 +583,12 @@ class Pivoter {
 		return true;
 	}
 
-	List<int> GetNeighbors(Point point, float radius) {
+	List<int> GetNeighbors(Vector3 point, float radius) {
 		List<int> indices;
 		//kdtree.RadiusSearch(point, radius, out indices, out _);
-		float time = Time.realtimeSinceStartup;
 		totalSearches++;
 		octree.RadiusSearch(point, radius, out indices);
 		//vgrid.RadiusSearch(point, radius, out indices);
-		cumulSearchTime += Time.realtimeSinceStartup - time;
 		return indices;
 	}
 }

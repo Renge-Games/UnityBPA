@@ -6,10 +6,11 @@ public class RunBPAlg : MonoBehaviour {
 	public GameObject BPAlgObject;
 
 	void Start() {
-		BallPivotingAlgorithm bpa1;
-		if(BPAlgObject.TryGetComponent(out bpa1)) {
+		BallPivotingAlgorithm bpa;
+		if(BPAlgObject.TryGetComponent(out bpa)) {
 			Debug.Log("Running first BP Alg...");
-			bpa1.Run(5000, 10.0f, 1.5f);
+			float[] passes = new float[] { 0.2f, 0.3f, 0.5f };
+			bpa.Run(20000, 10.0f, passes);
 		}
 	}
 }

@@ -197,7 +197,7 @@ namespace renge_pcl {
 			HalfLength = sideLength / 2;
 		}
 
-		public bool Contains(Point point) {
+		public bool Contains(in Vector3 point) {
 			if (point.x > Center.x + HalfLength.x || point.x < Center.x - HalfLength.x ||
 			point.y > Center.y + HalfLength.y || point.y < Center.y - HalfLength.y ||
 			point.z > Center.z + HalfLength.z || point.z < Center.z - HalfLength.z) {
@@ -206,7 +206,7 @@ namespace renge_pcl {
 			return true;
 		}
 
-		public bool Contains(Point point, float radius) {
+		public bool Contains(in Vector3 point, float radius) {
 			float x = Mathf.Max(Center.x - HalfLength.x, Mathf.Min(Center.x + HalfLength.x, point.x));
 			float y = Mathf.Max(Center.y - HalfLength.y, Mathf.Min(Center.y + HalfLength.y, point.y));
 			float z = Mathf.Max(Center.z - HalfLength.z, Mathf.Min(Center.z + HalfLength.z, point.z));
@@ -217,7 +217,7 @@ namespace renge_pcl {
 			return dist < radius;
 		}
 
-		public Vector3Int GetOctantCoords(Point position) {
+		public Vector3Int GetOctantCoords(in Vector3 position) {
 			Vector3Int res = new Vector3Int();
 			res.x = (int)Math.Floor((position.x - Center.x) / HalfLength.x) + 1;
 			res.y = (int)Math.Floor((position.y - Center.y) / HalfLength.y) + 1;
@@ -752,16 +752,15 @@ namespace renge_pcl {
 		public Tuple<PointNormal, int> First { get; set; }
 		public Tuple<PointNormal, int> Second { get; set; }
 		public Tuple<PointNormal, int> Third { get; set; }
-		public Point BallCenter { get; set; }
+		public Vector3 BallCenter { get; set; }
 		public float BallRadius { get; set; }
 
 		public Triangle() {
 			First = Second = Third = null;
-			BallCenter = null;
 			BallRadius = 0;
 		}
 
-		public Triangle(PointNormal p0, PointNormal p1, PointNormal p2, int index0, int index1, int index2, Point ballCenter, float ballRadius) {
+		public Triangle(PointNormal p0, PointNormal p1, PointNormal p2, int index0, int index1, int index2, Vector3 ballCenter, float ballRadius) {
 			First = new Tuple<PointNormal, int>(p0, index0);
 			Second = new Tuple<PointNormal, int>(p1, index1);
 			Third = new Tuple<PointNormal, int>(p2, index2);
@@ -812,28 +811,25 @@ namespace renge_pcl {
 		public Tuple<PointNormal, int> Second { get; set; }
 		public Tuple<PointNormal, int> OppositeVertex { get; set; }
 
-		public Point BallCenter { get; private set; }
-		public PointNormal MiddlePoint { get; private set; }
+		public Vector3 BallCenter { get; private set; }
+		public Vector3 MiddlePoint { get; private set; }
 		public bool Active { get; set; }
 		public float PivotingRadius { get; private set; }
 
 
 		public Edge() {
 			First = Second = OppositeVertex = null;
-			BallCenter = MiddlePoint = null;
 			Active = false;
 			PivotingRadius = 0;
 		}
 
-		public Edge(Tuple<PointNormal, int> first, Tuple<PointNormal, int> second, Tuple<PointNormal, int> opposite, Point ballCenter) {
+		public Edge(Tuple<PointNormal, int> first, Tuple<PointNormal, int> second, Tuple<PointNormal, int> opposite, in Vector3 ballCenter) {
 			First = first;
 			Second = second;
 			OppositeVertex = opposite;
 			BallCenter = ballCenter;
-			MiddlePoint = new PointNormal((First.Item1.x + Second.Item1.x) * 0.5f, (First.Item1.y + Second.Item1.y) * 0.5f, (First.Item1.z + Second.Item1.z) * 0.5f);
-			Vector3 m = new Vector3(MiddlePoint.x, MiddlePoint.y, MiddlePoint.z);
-			Vector3 c = new Vector3(BallCenter.x, BallCenter.y, BallCenter.z);
-			PivotingRadius = (m - c).magnitude;
+			MiddlePoint = new Vector3((First.Item1.x + Second.Item1.x) * 0.5f, (First.Item1.y + Second.Item1.y) * 0.5f, (First.Item1.z + Second.Item1.z) * 0.5f);
+			PivotingRadius = (MiddlePoint - BallCenter).magnitude;
 
 			Active = true;
 		}
