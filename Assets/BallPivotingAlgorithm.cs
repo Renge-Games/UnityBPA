@@ -18,6 +18,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	MeshFilter meshFilter;
 	float startTime;
 	public Text text;
+	bool running;
+	public int pivotsPerUpdate = 1;
 
 	private void Awake() {
 		MeshRenderer rend = GetComponent<MeshRenderer>();
@@ -25,6 +27,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		preMesh = new List<Triangle>();
 		mesh = new Mesh();
 		meshFilter = GetComponent<MeshFilter>();
+		running = false;
 	}
 
 	private void OnDrawGizmos() {
@@ -35,12 +38,39 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		}
 	}
 
+	private void Update() {
+		if (running) {
+			StepBallPivot();
+			MakeStepMesh();
+		}
+	}
+
 	public PointCloud<PointNormal> GetPointCloud() {
 		return cloud;
 	}
 
 	public Mesh GetMesh() {
 		return mesh;
+	}
+
+	public void RunInUpdate(float radius) {
+		running = true;
+		ballRadius = radius;
+		mesh = meshFilter.mesh;
+		//generate a sphere of points for testing purposes
+
+		cloud = new PointCloud<PointNormal>(mesh.vertexCount);
+		//cloud = new PointCloud<PointNormal>(numPoints);
+
+		for (int i = 0; i < mesh.vertexCount; i++) {
+			var v = mesh.vertices[i];
+			var n = mesh.normals[i];
+			cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
+		}
+
+		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
+		pivoter = new Pivoter(cloud, ballRadius);
+		f = new Front();
 	}
 
 	public void Run(int numPoints, float scale, float[] passes) {
@@ -78,6 +108,30 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		MakeMesh();
 		Debug.Log("Mesh created in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		Debug.Log("Tris:" + preMesh.Count);
+	}
+
+	void StepBallPivot() {
+		Edge e;
+		int i = 0;
+		for (i = 0; i < pivotsPerUpdate && (e = f.GetActiveEdge()) != null; i++) {
+			Tuple<int, Triangle> t = pivoter.Pivot(e);
+			if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
+				preMesh.Add(t.Item2);
+				f.JoinAndGlue(t, pivoter);
+			} else {
+				f.SetInactive(e);
+			}
+		}
+		
+		if(i == 0){
+			Triangle tri;
+			if ((tri = pivoter.FindSeed()) != null) {
+				preMesh.Add(tri);
+				f.AddEdges(tri);
+			} else {
+				running = false;
+			}
+		}
 	}
 
 	void RunBallPivot(float[] passes) {
@@ -147,6 +201,35 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		mesh.RecalculateNormals();
 
 		meshFilter.mesh = mesh;
+	}
+
+	Vector3[] vertices;
+	List<int> tris;
+	//what are you doing step-mesh??
+	void MakeStepMesh() {
+		if (meshFilter == null) meshFilter = GetComponent<MeshFilter>();
+		if (mesh == null) mesh = new Mesh();
+		if (vertices == null) { 
+			vertices = new Vector3[cloud.Count];
+			for (int i = 0; i < vertices.Length; i++) {
+				vertices[i] = cloud[i].AsVector3();
+			}
+		}
+		if (tris == null) tris = new List<int>();
+		for (int i = 0; i < (preMesh.Count * 3) - 2; i += 3) {
+			tris.Add(preMesh[i / 3].First.Item2);
+			tris.Add(preMesh[i / 3].Second.Item2);
+			tris.Add(preMesh[i / 3].Third.Item2);
+		}
+
+		mesh.Clear();
+		mesh.vertices = vertices;
+		mesh.triangles = tris.ToArray();
+		mesh.RecalculateNormals();
+
+		meshFilter.mesh = mesh;
+
+		preMesh.Clear();
 	}
 }
 
