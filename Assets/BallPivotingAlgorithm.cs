@@ -5,6 +5,7 @@ using UnityEngine;
 
 using renge_pcl;
 using renge_pcl.octree;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(MeshFilter))]
 public class BallPivotingAlgorithm : MonoBehaviour {
@@ -16,6 +17,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	Mesh mesh;
 	MeshFilter meshFilter;
 	float startTime;
+	public Text text;
 
 	private void Awake() {
 		MeshRenderer rend = GetComponent<MeshRenderer>();
@@ -64,16 +66,23 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
 
+		Debug.Log("Point Cloud initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		startTime = Time.realtimeSinceStartup;
+
 		RunBallPivot(passes);
-		MakeMesh();
 		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		Debug.Log("Tris:" + preMesh.Count);
 		Debug.Log("Total Searches: " + pivoter.totalSearches);
+		text.text = "Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s";
+
+		startTime = Time.realtimeSinceStartup;
+		MakeMesh();
+		Debug.Log("Mesh created in: " + (Time.realtimeSinceStartup - startTime) + "s");
 	}
 
 	void RunBallPivot(float[] passes) {
 		pivoter = new Pivoter(cloud, 0);
-		Debug.Log("Initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		Debug.Log("Pivoter initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		startTime = Time.realtimeSinceStartup;
 		f = new Front();
 

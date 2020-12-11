@@ -50,10 +50,14 @@ namespace renge_pcl {
 
 			public int RadiusSearch(Vector3 point, float radius, out List<int> indices) {
 				indices = new List<int>();
-
+				//List<KeyValuePair<int, float>> sortedIndices = new List<KeyValuePair<int, float>>();
 				for (int x = 0; x < 2; ++x) {
 					for (int y = 0; y < 2; ++y) {
 						for (int z = 0; z < 2; ++z) {
+							//List<KeyValuePair<int, float>> ind = branches[x, y, z].RadiusSearch(point, radius);
+							//if (ind != null) {
+							//	sortedIndices.AddRange(ind);
+							//}
 							List<int> ind = branches[x, y, z].RadiusSearch(point, radius);
 							if (ind != null) {
 								indices.AddRange(ind);
@@ -61,7 +65,12 @@ namespace renge_pcl {
 						}
 					}
 				}
-
+				//sortedIndices.Sort((first, next) => {
+				//	return first.Value.CompareTo(next.Value);
+				//});
+				//for (int i = 0; i < sortedIndices.Count; i++) {
+				//	indices.Add(sortedIndices[i].Key);
+				//}
 				return indices.Count;
 			}
 
@@ -178,7 +187,8 @@ namespace renge_pcl {
 					if (bb.Contains(point, radius)) {
 						if (!subdivided) {
 							for (int i = 0; i < this.indices.Count; i++) {
-								if ((points[this.indices[i]].AsVector3() - point).sqrMagnitude < radius * radius)
+								float sqrMag = (points[this.indices[i]].AsVector3() - point).sqrMagnitude;
+								if (sqrMag < radius * radius)
 									indices.Add(this.indices[i]);
 							}
 							return indices.Count > 0 ? indices : null;
@@ -193,12 +203,39 @@ namespace renge_pcl {
 								}
 							}
 						}
+						return indices;
 					} else {
 						return null;
 					}
-
-					return indices;
 				}
+
+				//public List<KeyValuePair<int, float>> RadiusSearch(Vector3 point, float radius) {
+				//	List<KeyValuePair<int, float>> indices = new List<KeyValuePair<int, float>>();
+
+				//	if (bb.Contains(point, radius)) {
+				//		if (!subdivided) {
+				//			for (int i = 0; i < this.indices.Count; i++) {
+				//				float sqrMag = (points[this.indices[i]].AsVector3() - point).sqrMagnitude;
+				//				if (sqrMag < radius * radius)
+				//					indices.Add(new KeyValuePair<int, float>(this.indices[i], sqrMag));
+				//			}
+				//			return indices.Count > 0 ? indices : null;
+				//		}
+				//		for (int x = 0; x < 2; ++x) {
+				//			for (int y = 0; y < 2; ++y) {
+				//				for (int z = 0; z < 2; ++z) {
+				//					List<KeyValuePair<int, float>> ind = branches[x, y, z].RadiusSearch(point, radius);
+				//					if (ind != null) {
+				//						indices.AddRange(ind);
+				//					}
+				//				}
+				//			}
+				//		}
+				//		return indices;
+				//	} else {
+				//		return null;
+				//	}
+				//}
 
 				void ClearSubTrees() {
 					branches = null;
