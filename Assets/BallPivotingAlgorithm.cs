@@ -71,13 +71,13 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 		RunBallPivot(passes);
 		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s");
-		Debug.Log("Tris:" + preMesh.Count);
 		Debug.Log("Total Searches: " + pivoter.totalSearches);
 		text.text = "Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s";
 
 		startTime = Time.realtimeSinceStartup;
 		MakeMesh();
 		Debug.Log("Mesh created in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		Debug.Log("Tris:" + preMesh.Count);
 	}
 
 	void RunBallPivot(float[] passes) {
