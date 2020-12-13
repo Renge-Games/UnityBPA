@@ -106,7 +106,7 @@ namespace renge_pcl {
 			}
 		}
 
-		public int RadiusSearch(Point point, float radius, out List<int> indices) {
+		public int RadiusSearch(Vector3 point, float radius, out List<int> indices) {
 			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
 			Vector3Int index = new Vector3Int();
 			index.x = (int)((point.x - min.x) / sideLength_);
@@ -130,7 +130,7 @@ namespace renge_pcl {
 						List<int> query = voxels_[xi + yi * width_ + zi * width_ * height_].Get();
 
 						foreach (int i in query) {
-							if ((point - cloud_[i]).magnitude <= radius) {
+							if ((cloud_[i] - point).magnitude <= radius) {
 								indices.Add(i);
 							}
 						}
