@@ -13,7 +13,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	PointCloud<PointNormal> cloud;
 	float ballRadius = 3;
 	List<Triangle> preMesh;
-	Pivoter[] pivoters;
+	Pivoter pivoter;
 	Mesh mesh;
 	MeshFilter meshFilter;
 	float startTime;
@@ -69,8 +69,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		}
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
-		pivoters = new Pivoter[1];
-		pivoters[0] = new Pivoter(cloud, ballRadius);
+		pivoter = new Pivoter(cloud, ballRadius);
 		f = new Front();
 	}
 
@@ -102,6 +101,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 		RunBallPivot(passes);
 		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		Debug.Log("Total Searches: " + pivoter.totalSearches);
 		text.text = "Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s";
 
 		startTime = Time.realtimeSinceStartup;
@@ -114,18 +114,18 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		Edge e;
 		int i = 0;
 		for (i = 0; i < pivotsPerUpdate && (e = f.GetActiveEdge()) != null; i++) {
-			Tuple<int, Triangle> t = pivoters[0].Pivot(e);
-			if (t != null && (!pivoters[0].IsUsed(t.Item1) || f.InFront(t.Item1))) {
+			Tuple<int, Triangle> t = pivoter.Pivot(e);
+			if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
 				preMesh.Add(t.Item2);
-				f.JoinAndGlue(t, pivoters[0]);
+				f.JoinAndGlue(t, pivoter);
 			} else {
 				f.SetInactive(e);
 			}
 		}
-
-		if (i == 0) {
+		
+		if(i == 0){
 			Triangle tri;
-			if ((tri = pivoters[0].FindSeed()) != null) {
+			if ((tri = pivoter.FindSeed()) != null) {
 				preMesh.Add(tri);
 				f.AddEdges(tri);
 			} else {
@@ -135,48 +135,38 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	}
 
 	void RunBallPivot(float[] passes) {
+		pivoter = new Pivoter(cloud, 0);
 		Debug.Log("Pivoter initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		startTime = Time.realtimeSinceStartup;
 		f = new Front();
 
-		//ballRadius = passes[i];
-		//pivoter.SetBallRadius(ballRadius);
-		pivoters = new Pivoter[passes.Length];
-		for (int i = 0; i < pivoters.Length; i++) {
-			pivoters[i] = new Pivoter(cloud, passes[i]);
-		}
+		for (int i = 0; i < passes.Length; i++) {
 
-		while (true) {
+			ballRadius = passes[i];
+			pivoter.SetBallRadius(ballRadius);
 
-			for (int i = 0; i < pivoters.Length; i++) {
-				//don't do this on the first pass
-				if (i > 0) {
-					f.ActivateSeedEdges(pivoters[i]);
-				}
-
+			while (true) {
 				Edge e;
 				while ((e = f.GetActiveEdge()) != null) {
-					Tuple<int, Triangle> t = pivoters[i].Pivot(e);
-					if (t != null && (!pivoters[i].IsUsed(t.Item1) || f.InFront(t.Item1))) {
+					Tuple<int, Triangle> t = pivoter.Pivot(e);
+					if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
 						preMesh.Add(t.Item2);
-						f.JoinAndGlue(t, pivoters[i]);
+						f.JoinAndGlue(t, pivoter);
 					} else {
 						f.SetInactive(e);
 					}
 				}
-			}
 
-			bool seedFound = false;
-			for (int i = 0; i < pivoters.Length; i++) {
 				Triangle tri;
-				if ((tri = pivoters[i].FindSeed()) != null) {
+				if ((tri = pivoter.FindSeed()) != null) {
 					preMesh.Add(tri);
 					f.AddEdges(tri);
-					seedFound = true;
+				} else {
+					pivoter.FindSeed();
 					break;
 				}
+
 			}
-			if (!seedFound) break;
 		}
 
 		//for (int i = 0; i < preMesh.Count; i++) {
@@ -219,7 +209,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	void MakeStepMesh() {
 		if (meshFilter == null) meshFilter = GetComponent<MeshFilter>();
 		if (mesh == null) mesh = new Mesh();
-		if (vertices == null) {
+		if (vertices == null) { 
 			vertices = new Vector3[cloud.Count];
 			for (int i = 0; i < vertices.Length; i++) {
 				vertices[i] = cloud[i].AsVector3();
@@ -274,14 +264,6 @@ class Front {
 		}
 
 		return e;
-	}
-
-	public void ActivateSeedEdges(Pivoter p) {
-		foreach (var item in front) {
-			if (p.IsSeed(item)) {
-				item.Active = true;
-			}
-		}
 	}
 
 	internal void AddEdges(Triangle tri) {
@@ -369,14 +351,12 @@ class Front {
 		e.Active = false;
 		RemoveEdgePoints(e);
 		if (front.First == pos) {
-			pos = pos.Next;
-			//front.Remove(pos);
-			//pos = front.First;
+			front.Remove(pos);
+			pos = front.First;
 		} else {
-			pos = pos.Previous;
-			//var tmp = pos.Previous;
-			//front.Remove(pos);
-			//pos = tmp;
+			var tmp = pos.Previous;
+			front.Remove(pos);
+			pos = tmp;
 		}
 	}
 
@@ -440,21 +420,22 @@ class Front {
 
 class Pivoter {
 	//KDTree<PointNormal> kdtree;
-	//OcTree<PointNormal> octree;
-	VoxelGrid<PointNormal> vgrid;
+	OcTree<PointNormal> octree;
+	//VoxelGrid<PointNormal> vgrid;
 	PointCloud<PointNormal> cloud;
 	float ballRadius;
 	SortedDictionary<int, bool> notUsed;
 	public int totalSearches;
 
 	public Pivoter(PointCloud<PointNormal> cloud, float ballRadius) {
+		this.ballRadius = ballRadius;
 		this.cloud = cloud;
 		totalSearches = 0;
 		//kdtree = new KDTree<PointNormal>();
 		//kdtree.SetInputCloud(cloud);
-		//octree = new OcTree<PointNormal>();
-		//octree.SetInputCloud(cloud, 100);
-		SetBallRadius(ballRadius);
+		octree = new OcTree<PointNormal>();
+		octree.SetInputCloud(cloud, 80);
+		//vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius * 2);
 		notUsed = new SortedDictionary<int, bool>();
 
 		for (int i = 0; i < cloud.Count; i++) {
@@ -463,9 +444,7 @@ class Pivoter {
 	}
 
 	public void SetBallRadius(float radius) {
-		if (radius == 0) return;
 		this.ballRadius = radius;
-		vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius * 2);
 	}
 
 	internal Tuple<int, Triangle> Pivot(Edge e) {
@@ -700,16 +679,8 @@ class Pivoter {
 		List<int> indices;
 		//kdtree.RadiusSearch(point, radius, out indices, out _);
 		totalSearches++;
-		//octree.RadiusSearch(point, radius, out indices);
-		vgrid.RadiusSearch(point, radius, out indices);
+		octree.RadiusSearch(point, radius, out indices);
+		//vgrid.RadiusSearch(point, radius, out indices);
 		return indices;
-	}
-
-	internal bool IsSeed(Edge item) {
-		List<int> neighborhood = GetNeighbors(item.BallCenter, ballRadius);
-		if (isEmpty(neighborhood, item.First.Item2, item.Second.Item2, item.OppositeVertex.Item2, item.BallCenter)) {
-			return true;
-		}
-		return false;
 	}
 }
