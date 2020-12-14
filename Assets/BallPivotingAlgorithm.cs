@@ -53,19 +53,25 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		return mesh;
 	}
 
-	public void RunInUpdate(float radius) {
+	public void RunInUpdate(int numPoints, float scale, float radius) {
 		running = true;
 		ballRadius = radius;
 		mesh = meshFilter.mesh;
 		//generate a sphere of points for testing purposes
 
-		cloud = new PointCloud<PointNormal>(mesh.vertexCount);
-		//cloud = new PointCloud<PointNormal>(numPoints);
+		//cloud = new PointCloud<PointNormal>(mesh.vertexCount);
+		cloud = new PointCloud<PointNormal>(numPoints);
 
-		for (int i = 0; i < mesh.vertexCount; i++) {
-			var v = mesh.vertices[i];
-			var n = mesh.normals[i];
-			cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
+		//for (int i = 0; i < mesh.vertexCount; i++) {
+		//	var v = mesh.vertices[i];
+		//	var n = mesh.normals[i];
+		//	cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
+		//}
+
+		for (int i = 0; i < numPoints; i++) {
+			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+			var point = normal * scale;
+			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
 		}
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
@@ -79,20 +85,20 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		mesh = meshFilter.mesh;
 		//generate a sphere of points for testing purposes
 
-		cloud = new PointCloud<PointNormal>(mesh.vertexCount);
-		//cloud = new PointCloud<PointNormal>(numPoints);
+		//cloud = new PointCloud<PointNormal>(mesh.vertexCount);
+		cloud = new PointCloud<PointNormal>(numPoints);
 
-		for (int i = 0; i < mesh.vertexCount; i++) {
-			var v = mesh.vertices[i];
-			var n = mesh.normals[i];
-			cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
-		}
-
-		//for (int i = 0; i < numPoints; i++) {
-		//	var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-		//	var point = normal * scale;
-		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		//for (int i = 0; i < mesh.vertexCount; i++) {
+		//	var v = mesh.vertices[i];
+		//	var n = mesh.normals[i];
+		//	cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
 		//}
+
+		for (int i = 0; i < numPoints; i++) {
+			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+			var point = normal * scale;
+			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+		}
 
 		float initTime = (Time.realtimeSinceStartup - startTime);
 		Debug.Log("Point Cloud loaded in: " + initTime + "s");

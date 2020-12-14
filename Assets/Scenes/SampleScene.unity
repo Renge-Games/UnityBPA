@@ -5334,6 +5334,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   BPAlgObject: {fileID: 450382424}
+  pivotingRadius: 0.04
+  runInUpdate: 1
 --- !u!4 &635250260
 Transform:
   m_ObjectHideFlags: 0
