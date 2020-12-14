@@ -96,7 +96,7 @@ namespace renge_pcl {
 			}
 			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
 			for (int i = 0; i < cloud_.Count; i++) {
-				var p = cloud_[i];
+				T p = cloud_[i];
 
 				int x = (int)((p.x - min.x) / sideLength_),
 					y = (int)((p.y - min.y) / sideLength_),

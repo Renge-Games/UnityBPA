@@ -4,14 +4,19 @@ using UnityEngine;
 
 public class RunBPAlg : MonoBehaviour {
 	public GameObject BPAlgObject;
-
+	public float pivotingRadius;
+	public bool runInUpdate = true;
 	void Start() {
 		BallPivotingAlgorithm bpa;
-		if(BPAlgObject.TryGetComponent(out bpa)) {
-			Debug.Log("Running first BP Alg...");
-			float[] passes = new float[] { 0.15f };
-			bpa.Run(20000, 10.0f, passes);
-			//bpa.RunInUpdate(0.2f);
+		if (BPAlgObject.TryGetComponent(out bpa)) {
+			Debug.Log("Running BPA...");
+			if (runInUpdate) {
+				bpa.RunInUpdate(pivotingRadius);
+			} else {
+				float[] passes = new float[] { pivotingRadius };
+				bpa.Run(20000, 10.0f, passes);
+			}
+
 		}
 	}
 }

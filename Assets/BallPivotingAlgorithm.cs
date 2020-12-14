@@ -94,10 +94,14 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
 		//}
 
+		float initTime = (Time.realtimeSinceStartup - startTime);
+		Debug.Log("Point Cloud loaded in: " + initTime + "s");
+		startTime = Time.realtimeSinceStartup;
+
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
 
-		float initTime = (Time.realtimeSinceStartup - startTime);
-		Debug.Log("Point Cloud initialized in: " + initTime + "s");
+		float voxTime = (Time.realtimeSinceStartup - startTime);
+		Debug.Log("Renderer initialized in: " + voxTime + "s");
 		startTime = Time.realtimeSinceStartup;
 
 		RunBallPivot(passes);
@@ -128,8 +132,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 				f.SetInactive(e);
 			}
 		}
-		
-		if(i == 0){
+
+		if (i == 0) {
 			Triangle tri;
 			if ((tri = pivoter.FindSeed()) != null) {
 				preMesh.Add(tri);
@@ -141,37 +145,33 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	}
 
 	void RunBallPivot(float[] passes) {
-		pivoter = new Pivoter(cloud, 0);
+		
 		startTime = Time.realtimeSinceStartup;
 		f = new Front();
 
-		for (int i = 0; i < passes.Length; i++) {
+		ballRadius = passes[0];
+		pivoter = new Pivoter(cloud, ballRadius);
+		Debug.Log("Pivoter initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
 
-			ballRadius = passes[i];
-			pivoter.SetBallRadius(ballRadius);
-			Debug.Log("Pivoter initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
-
-			while (true) {
-				Edge e;
-				while ((e = f.GetActiveEdge()) != null) {
-					Tuple<int, Triangle> t = pivoter.Pivot(e);
-					if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
-						preMesh.Add(t.Item2);
-						f.JoinAndGlue(t, pivoter);
-					} else {
-						f.SetInactive(e);
-					}
-				}
-
-				Triangle tri;
-				if ((tri = pivoter.FindSeed()) != null) {
-					preMesh.Add(tri);
-					f.AddEdges(tri);
+		while (true) {
+			Edge e;
+			while ((e = f.GetActiveEdge()) != null) {
+				Tuple<int, Triangle> t = pivoter.Pivot(e);
+				if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
+					preMesh.Add(t.Item2);
+					f.JoinAndGlue(t, pivoter);
 				} else {
-					pivoter.FindSeed();
-					break;
+					f.SetInactive(e);
 				}
+			}
 
+			Triangle tri;
+			if ((tri = pivoter.FindSeed()) != null) {
+				preMesh.Add(tri);
+				f.AddEdges(tri);
+			} else {
+				pivoter.FindSeed();
+				break;
 			}
 		}
 	}
@@ -206,7 +206,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	void MakeStepMesh() {
 		if (meshFilter == null) meshFilter = GetComponent<MeshFilter>();
 		if (mesh == null) mesh = new Mesh();
-		if (vertices == null) { 
+		if (vertices == null) {
 			vertices = new Vector3[cloud.Count];
 			for (int i = 0; i < vertices.Length; i++) {
 				vertices[i] = cloud[i].AsVector3();
