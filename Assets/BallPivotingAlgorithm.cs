@@ -96,18 +96,24 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
 
-		Debug.Log("Point Cloud initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		float initTime = (Time.realtimeSinceStartup - startTime);
+		Debug.Log("Point Cloud initialized in: " + initTime + "s");
 		startTime = Time.realtimeSinceStartup;
 
 		RunBallPivot(passes);
-		Debug.Log("Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		float triangTime = (Time.realtimeSinceStartup - startTime);
+		Debug.Log("Triangulation completed in: " + triangTime + "s");
 		Debug.Log("Total Searches: " + pivoter.totalSearches);
-		text.text = "Triangulation completed in: " + (Time.realtimeSinceStartup - startTime) + "s";
 
 		startTime = Time.realtimeSinceStartup;
 		MakeMesh();
-		Debug.Log("Mesh created in: " + (Time.realtimeSinceStartup - startTime) + "s");
+		float meshTime = Time.realtimeSinceStartup - startTime;
+		Debug.Log("Mesh created in: " + meshTime + "s");
 		Debug.Log("Tris:" + preMesh.Count);
+
+		text.text = "Point Cloud initialized in: " + initTime + "s\n" +
+					"Triangulation completed in: " + triangTime + "s\n" +
+					"Mesh created in: " + meshTime + "s";
 	}
 
 	void StepBallPivot() {
@@ -136,7 +142,6 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 	void RunBallPivot(float[] passes) {
 		pivoter = new Pivoter(cloud, 0);
-		Debug.Log("Pivoter initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
 		startTime = Time.realtimeSinceStartup;
 		f = new Front();
 
@@ -144,6 +149,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 			ballRadius = passes[i];
 			pivoter.SetBallRadius(ballRadius);
+			Debug.Log("Pivoter initialized in: " + (Time.realtimeSinceStartup - startTime) + "s");
 
 			while (true) {
 				Edge e;
@@ -168,15 +174,6 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 			}
 		}
-
-		//for (int i = 0; i < preMesh.Count; i++) {
-		//	for (int j = i + 1; j < preMesh.Count; j++) {
-		//		if (preMesh[i] == preMesh[j]) {
-		//			preMesh.RemoveAt(j);
-		//			j--;
-		//		}
-		//	}
-		//}
 	}
 
 	void MakeMesh() {
@@ -420,22 +417,21 @@ class Front {
 
 class Pivoter {
 	//KDTree<PointNormal> kdtree;
-	OcTree<PointNormal> octree;
-	//VoxelGrid<PointNormal> vgrid;
+	//OcTree<PointNormal> octree;
+	VoxelGrid<PointNormal> vgrid;
 	PointCloud<PointNormal> cloud;
 	float ballRadius;
 	SortedDictionary<int, bool> notUsed;
 	public int totalSearches;
 
 	public Pivoter(PointCloud<PointNormal> cloud, float ballRadius) {
-		this.ballRadius = ballRadius;
 		this.cloud = cloud;
 		totalSearches = 0;
 		//kdtree = new KDTree<PointNormal>();
 		//kdtree.SetInputCloud(cloud);
-		octree = new OcTree<PointNormal>();
-		octree.SetInputCloud(cloud, 80);
-		//vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius * 2);
+		//octree = new OcTree<PointNormal>();
+		//octree.SetInputCloud(cloud, 80);
+		SetBallRadius(ballRadius);
 		notUsed = new SortedDictionary<int, bool>();
 
 		for (int i = 0; i < cloud.Count; i++) {
@@ -444,7 +440,9 @@ class Pivoter {
 	}
 
 	public void SetBallRadius(float radius) {
+		if (radius == 0 || cloud == null) return;
 		this.ballRadius = radius;
+		vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius);
 	}
 
 	internal Tuple<int, Triangle> Pivot(Edge e) {
@@ -679,8 +677,8 @@ class Pivoter {
 		List<int> indices;
 		//kdtree.RadiusSearch(point, radius, out indices, out _);
 		totalSearches++;
-		octree.RadiusSearch(point, radius, out indices);
-		//vgrid.RadiusSearch(point, radius, out indices);
+		//octree.RadiusSearch(point, radius, out indices);
+		vgrid.RadiusSearch(point, radius, out indices);
 		return indices;
 	}
 }

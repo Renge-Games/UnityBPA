@@ -315,6 +315,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   text: {fileID: 1069644596}
+  pivotsPerUpdate: 1
 --- !u!33 &450382426
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -5761,8 +5762,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 573, y: 55}
-  m_SizeDelta: {x: 1000, y: 30}
+  m_AnchoredPosition: {x: 520.1, y: 75.66}
+  m_SizeDelta: {x: 1000, y: 106.07562}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1069644596
 MonoBehaviour:
@@ -5790,13 +5791,19 @@ MonoBehaviour:
     m_BestFit: 0
     m_MinSize: 10
     m_MaxSize: 40
-    m_Alignment: 3
+    m_Alignment: 6
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: asdf
+  m_Text: 'asdf
+
+    asdf
+
+    sadf
+
+    asdf'
 --- !u!222 &1069644597
 CanvasRenderer:
   m_ObjectHideFlags: 0

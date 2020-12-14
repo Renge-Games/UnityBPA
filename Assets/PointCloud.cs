@@ -106,7 +106,7 @@ namespace renge_pcl {
 			}
 		}
 
-		public int RadiusSearch(Point point, float radius, out List<int> indices) {
+		public int RadiusSearch(Vector3 point, float radius, out List<int> indices) {
 			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
 			Vector3Int index = new Vector3Int();
 			index.x = (int)((point.x - min.x) / sideLength_);
@@ -114,23 +114,30 @@ namespace renge_pcl {
 			index.z = (int)((point.z - min.z) / sideLength_);
 
 			indices = new List<int>();
+			int numVoxels = 3;
 
-			index -= new Vector3Int(1, 1, 1);
+			if (radius > sideLength_) {
+				index -= new Vector3Int(2, 2, 2);
+				numVoxels = 6;
+			} else {
+				index -= new Vector3Int(1, 1, 1);
+			}
+
 			//float sqrRadius = radius * radius;
-			for (int x = 0; x < 3; x++) {
+			for (int x = 0; x < numVoxels; x++) {
 				int xi = (index.x + x);
 				if (xi >= width_ || xi < 0) continue;
-				for (int y = 0; y < 3; y++) {
+				for (int y = 0; y < numVoxels; y++) {
 					int yi = (index.y + y);
 					if (yi >= height_ || yi < 0) continue;
-					for (int z = 0; z < 3; z++) {
+					for (int z = 0; z < numVoxels; z++) {
 						int zi = (index.z + z);
 						if (zi >= depth_ || zi < 0) continue;
 
 						List<int> query = voxels_[xi + yi * width_ + zi * width_ * height_].Get();
 
 						foreach (int i in query) {
-							if ((point - cloud_[i]).magnitude <= radius) {
+							if ((cloud_[i] - point).magnitude <= radius) {
 								indices.Add(i);
 							}
 						}
