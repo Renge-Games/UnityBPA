@@ -7,6 +7,10 @@ using renge_pcl;
 using renge_pcl.octree;
 using UnityEngine.UI;
 
+public enum PointMeshType {
+	Sphere
+}
+
 [RequireComponent(typeof(MeshFilter))]
 public class BallPivotingAlgorithm : MonoBehaviour {
 	Front f;
@@ -19,7 +23,11 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	float startTime;
 	public Text text;
 	bool running;
-	public int pivotsPerUpdate = 1;
+	int pivotsPerUpdate = 1;
+	int pivotAnimationSteps = 5;
+	bool pivotingInAction = false;
+	int currentPivotStepNum = 0;
+	public GameObject ball;
 
 	private void Awake() {
 		MeshRenderer rend = GetComponent<MeshRenderer>();
@@ -40,8 +48,9 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 	private void Update() {
 		if (running) {
-			StepBallPivot();
-			MakeStepMesh();
+			if (StepBallPivot()) {
+				MakeStepMesh();
+			}
 		}
 	}
 
@@ -53,25 +62,34 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		return mesh;
 	}
 
-	public void RunInUpdate(int numPoints, float scale, float radius) {
+	public void RunInUpdate(bool fromShape, PointMeshType shape, int pivotsPerUpdate, int pivotAnimationSteps, int numPoints, float scale, float radius) {
+		this.pivotsPerUpdate = pivotsPerUpdate;
+		this.pivotAnimationSteps = pivotAnimationSteps;
 		running = true;
 		ballRadius = radius;
 		mesh = meshFilter.mesh;
+		ball.transform.localScale = new Vector3(radius * 2, radius * 2, radius * 2);
 		//generate a sphere of points for testing purposes
 
-		//cloud = new PointCloud<PointNormal>(mesh.vertexCount);
-		cloud = new PointCloud<PointNormal>(numPoints);
+		if (fromShape) {
+			cloud = new PointCloud<PointNormal>(numPoints);
 
-		//for (int i = 0; i < mesh.vertexCount; i++) {
-		//	var v = mesh.vertices[i];
-		//	var n = mesh.normals[i];
-		//	cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
-		//}
-
-		for (int i = 0; i < numPoints; i++) {
-			var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-			var point = normal * scale;
-			cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+			if (shape == PointMeshType.Sphere) {
+				for (int i = 0; i < numPoints; i++) {
+					var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+					var point = normal * scale;
+					cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+				}
+			}
+		} else {
+			cloud = new PointCloud<PointNormal>(mesh.vertexCount);
+			var vertices = mesh.vertices;
+			var normals = mesh.normals;
+			for (int i = 0; i < mesh.vertexCount; i++) {
+				Vector3 v = vertices[i];
+				Vector3 n = normals[i];
+				cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
+			}
 		}
 
 		GetComponent<VoxelRenderer>().SetFromPointCloud(cloud);
@@ -126,28 +144,70 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 					"Mesh created in: " + meshTime + "s";
 	}
 
-	void StepBallPivot() {
+	Triangle toAdd;
+	Vector3 oldPos;
+	Vector3 newPos;
+	float pivotedAngle;
+	Edge pivotEdge;
+
+	bool StepBallPivot() {
+		bool updated = false;
 		Edge e;
 		int i = 0;
-		for (i = 0; i < pivotsPerUpdate && (e = f.GetActiveEdge()) != null; i++) {
-			Tuple<int, Triangle> t = pivoter.Pivot(e);
-			if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
-				preMesh.Add(t.Item2);
-				f.JoinAndGlue(t, pivoter);
-			} else {
-				f.SetInactive(e);
-			}
-		}
 
-		if (i == 0) {
-			Triangle tri;
-			if ((tri = pivoter.FindSeed()) != null) {
-				preMesh.Add(tri);
-				f.AddEdges(tri);
-			} else {
-				running = false;
+
+		if (pivotingInAction) {
+			if(currentPivotStepNum < pivotAnimationSteps) {
+				currentPivotStepNum++;
+				if (currentPivotStepNum == pivotAnimationSteps) {
+					pivotingInAction = false;
+					currentPivotStepNum = 0;
+					preMesh.Add(toAdd);
+					updated = true;
+					ball.transform.position = newPos;
+				} else {
+					//ball.transform.position = oldPos + (newPos - oldPos) * (1.0f / pivotAnimationSteps) * currentPivotStepNum;
+					ball.transform.RotateAround(pivotEdge.MiddlePoint, (pivotEdge.Second.Item1 - pivotEdge.MiddlePoint).normalized, Mathf.Rad2Deg * pivotedAngle);
+				}
+			}
+		} else {
+			for (i = 0; i < pivotsPerUpdate && (e = f.GetActiveEdge()) != null; i++) {
+				Tuple<int, Triangle> t = pivoter.Pivot(e);
+				if (t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))) {
+					if (pivotsPerUpdate == 1) {
+						pivotingInAction = true;
+						toAdd = t.Item2;
+						oldPos = e.BallCenter;
+						newPos = t.Item2.BallCenter;
+						ball.transform.position = oldPos;
+						//pivotedAngle = (pivoter.PivotedAngle) * (1.0f / pivotAnimationSteps);
+						Vector3 a = (oldPos - e.MiddlePoint);
+						Vector3 b = newPos - e.MiddlePoint;
+						pivotedAngle = Mathf.Acos(a.Dot(b) / (a.magnitude * b.magnitude)) * (1.0f / pivotAnimationSteps);
+						pivotEdge = e;
+					} else {
+						preMesh.Add(t.Item2);
+						updated = true;
+					}
+					f.JoinAndGlue(t, pivoter);
+				} else {
+					f.SetInactive(e);
+				}
+			}
+
+			if (i == 0) {
+				Triangle tri;
+				if ((tri = pivoter.FindSeed()) != null) {
+					preMesh.Add(tri);
+					updated = true;
+					ball.transform.position = tri.BallCenter;
+					f.AddEdges(tri);
+				} else {
+					running = false;
+				}
 			}
 		}
+		return updated;
 	}
 
 	void RunBallPivot(float[] passes) {
@@ -451,6 +511,7 @@ class Pivoter {
 		vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius);
 	}
 
+	public float PivotedAngle = 0;
 	internal Tuple<int, Triangle> Pivot(Edge e) {
 		Tuple<PointNormal, int> v0 = e.First;
 		Tuple<PointNormal, int> v1 = e.Second;
@@ -501,7 +562,7 @@ class Pivoter {
 					float angle = Mathf.Acos(cosAngle);
 
 					if (output == null || currentAngle > angle) {
-						currentAngle = angle;
+						PivotedAngle = currentAngle = angle;
 						output = new Tuple<int, Triangle>(index, new Triangle(v0.Item1, cloud[index], v1.Item1, v0.Item2, index, v1.Item2, center, ballRadius));
 					}
 				}
