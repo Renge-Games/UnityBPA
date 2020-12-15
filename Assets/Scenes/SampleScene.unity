@@ -5243,8 +5243,8 @@ MonoBehaviour:
   BPAlgObject: {fileID: 450382424}
   pivotingRadius: 0.15
   runInUpdate: 1
-  pivotsPerUpdate: 1
-  pivotAnimationSteps: 100
+  pivotsPerUpdate: 10
+  pivotAnimationSteps: 1
   fromShape: 0
 --- !u!4 &635250260
 Transform:
