@@ -5242,7 +5242,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   BPAlgObject: {fileID: 450382424}
   pivotingRadius: 0.15
-  runInUpdate: 1
+  runInUpdate: 0
   pivotsPerUpdate: 10
   pivotAnimationSteps: 1
   fromShape: 0
