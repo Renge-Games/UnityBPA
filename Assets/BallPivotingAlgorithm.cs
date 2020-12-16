@@ -512,13 +512,10 @@ class Pivoter {
 		vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius);
 	}
 
-	public float PivotedAngle = 0;
 	internal Tuple<int, Triangle> Pivot(Edge e) {
 		Tuple<PointNormal, int> v0 = e.First;
 		Tuple<PointNormal, int> v1 = e.Second;
 		Tuple<PointNormal, int> op = e.OppositeVertex;
-
-		float pivotingRadius = e.PivotingRadius;
 
 		//Vector3 diff1 = 100 * (v0.Item1.AsVector3() - middle);
 		//Vector3 diff2 = 100 * (e.BallCenter.AsVector3() - middle);
@@ -534,7 +531,7 @@ class Pivoter {
 		float currentAngle = Mathf.PI;
 		Tuple<int, Triangle> output = null;
 
-		int[] indices = GetNeighbors(e.MiddlePoint, pivotingRadius * 2).ToArray();
+		int[] indices = GetNeighbors(e.MiddlePoint, ballRadius * 2).ToArray();
 		for (int t = 0; t < indices.Length; t++) {
 			int index = indices[t];
 			if (v0.Item2 == index || v1.Item2 == index || op.Item2 == index)
@@ -563,7 +560,7 @@ class Pivoter {
 					float angle = Mathf.Acos(cosAngle);
 
 					if (output == null || currentAngle > angle) {
-						PivotedAngle = currentAngle = angle;
+						currentAngle = angle;
 						output = new Tuple<int, Triangle>(index, new Triangle(v0.Item1, cloud[index], v1.Item1, v0.Item2, index, v1.Item2, center, ballRadius));
 					}
 				}
@@ -597,7 +594,7 @@ class Pivoter {
 				if (index1 == index0 || !notUsed.ContainsKey(index1) || removeIndices.Contains(index1))
 					continue;
 
-				for (int k = j; k < indices.Length && !found; k++) {
+				for (int k = 0; k < indices.Length && !found; k++) {
 					int index2 = indices[k];
 
 					if (index1 == index2 || index2 == index0 || !notUsed.ContainsKey(index2) || removeIndices.Contains(index2))
