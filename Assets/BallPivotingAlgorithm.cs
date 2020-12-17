@@ -158,7 +158,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 
 		if (pivotingInAction) {
-			if(currentPivotStepNum < pivotAnimationSteps) {
+			if (currentPivotStepNum < pivotAnimationSteps) {
 				currentPivotStepNum++;
 				if (currentPivotStepNum == pivotAnimationSteps) {
 					pivotingInAction = false;
@@ -187,6 +187,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 						pivotedAngle = Mathf.Acos(a.Dot(b) / (a.magnitude * b.magnitude)) * (1.0f / pivotAnimationSteps);
 						pivotEdge = e;
 					} else {
+						ball.transform.position = t.Item2.BallCenter;
 						preMesh.Add(t.Item2);
 						updated = true;
 					}
@@ -212,7 +213,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	}
 
 	void RunBallPivot(float[] passes) {
-		
+
 		startTime = Time.realtimeSinceStartup;
 		f = new Front();
 
@@ -557,18 +558,18 @@ class Pivoter {
 						continue;
 
 
-					//float cosAngle = zeroAngle.Dot(plane.Projection(center).normalized);
-					//if (Mathf.Abs(cosAngle) > 1.0f) {
-					//	cosAngle = Mathf.Sign(cosAngle);
-					//}
+					float cosAngle = zeroAngle.Dot(plane.Projection(center).normalized);
+					if (Mathf.Abs(cosAngle) > 1.0f) {
+						cosAngle = Mathf.Sign(cosAngle);
+					}
 
-					//float angle = Mathf.Acos(cosAngle);
+					float angle = Mathf.Acos(cosAngle);
 
-					//if (output == null /*|| currentAngle > angle*/) {
-						//currentAngle = angle;
+					if (output == null || currentAngle > angle) {
+						currentAngle = angle;
 						output = new Tuple<int, Triangle>(index, new Triangle(v0.Item1, cloud[index], v1.Item1, v0.Item2, index, v1.Item2, center, ballRadius));
-						return output;
-					//}
+						//return output;
+					}
 				}
 			}
 		}

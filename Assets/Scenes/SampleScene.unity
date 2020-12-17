@@ -230,7 +230,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 450382424}
-  m_Mesh: {fileID: -5676588575540745739, guid: a2504e3d378acd94eb81d949f3f3955d, type: 3}
+  m_Mesh: {fileID: -3229963728398979078, guid: 98d1dd8b0f3296748990ca0a8372a455, type: 3}
 --- !u!4 &450382427
 Transform:
   m_ObjectHideFlags: 0
@@ -5241,10 +5241,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   BPAlgObject: {fileID: 450382424}
-  pivotingRadius: 0.12
+  pivotingRadius: 0.05
   runInUpdate: 0
-  pivotsPerUpdate: 10
-  pivotAnimationSteps: 1
+  pivotsPerUpdate: 100
+  pivotAnimationSteps: 5
   fromShape: 0
 --- !u!4 &635250260
 Transform:
@@ -5439,7 +5439,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 915621851}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.933, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
