@@ -77,6 +77,7 @@ namespace renge_pcl {
 		int width_, height_, depth_;
 		BoundingBox rootBB_;
 		Voxel[] voxels_;
+		Vector3 min;
 
 		public VoxelGrid(PointCloud<T> cloud, float sideLength) {
 			cloud_ = cloud;
@@ -94,7 +95,7 @@ namespace renge_pcl {
 			for (int i = 0; i < voxels_.Length; i++) {
 				voxels_[i] = new Voxel();
 			}
-			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
+			min = rootBB_.Center - rootBB_.HalfLength;
 			for (int i = 0; i < cloud_.Count; i++) {
 				T p = cloud_[i];
 
@@ -104,10 +105,13 @@ namespace renge_pcl {
 
 				voxels_[x + width_ * y + width_ * height_ * z].Insert(i);
 			}
+
+			//for (int i = 0; i < voxels_.Length; i++) {
+			//	voxels_[i].FinishInit();
+			//}
 		}
 
 		public int RadiusSearch(Vector3 point, float radius, out List<int> indices) {
-			Vector3 min = rootBB_.Center - rootBB_.HalfLength;
 			Vector3Int index = new Vector3Int();
 			index.x = (int)((point.x - min.x) / sideLength_);
 			index.y = (int)((point.y - min.y) / sideLength_);
@@ -123,6 +127,8 @@ namespace renge_pcl {
 				index -= new Vector3Int(1, 1, 1);
 			}
 
+			float sqrRadius = radius * radius;
+			int wh = width_ * height_;
 			//float sqrRadius = radius * radius;
 			for (int x = 0; x < numVoxels; x++) {
 				int xi = (index.x + x);
@@ -130,17 +136,24 @@ namespace renge_pcl {
 				for (int y = 0; y < numVoxels; y++) {
 					int yi = (index.y + y);
 					if (yi >= height_ || yi < 0) continue;
+					int xy = xi + yi * width_;
 					for (int z = 0; z < numVoxels; z++) {
 						int zi = (index.z + z);
 						if (zi >= depth_ || zi < 0) continue;
 
-						List<int> query = voxels_[xi + yi * width_ + zi * width_ * height_].Get();
-
-						foreach (int i in query) {
-							if ((cloud_[i] - point).magnitude <= radius) {
-								indices.Add(i);
+						List<int> query = voxels_[xy + zi * wh].Get();
+						int c = query.Count;
+						for (int j = 0; j < c; j++) {
+							if ((cloud_[query[j]] - point).sqrMagnitude <= sqrRadius) {
+								indices.Add(query[j]);
 							}
 						}
+
+						//foreach (int i in query) {
+						//	if ((cloud_[i] - point).sqrMagnitude <= sqrRadius) {
+						//		indices.Add(i);
+						//	}
+						//}
 					}
 				}
 			}

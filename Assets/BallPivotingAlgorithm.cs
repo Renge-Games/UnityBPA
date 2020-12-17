@@ -526,10 +526,14 @@ class Pivoter {
 		HyperPlane plane = new HyperPlane(normal, e.MiddlePoint);
 
 		Vector3 zeroAngle = op.Item1 - e.MiddlePoint;
-		zeroAngle = plane.Projection(zeroAngle).normalized;
+		zeroAngle = plane.Projection(zeroAngle);
+		zeroAngle.Normalize();
 
 		float currentAngle = Mathf.PI;
 		Tuple<int, Triangle> output = null;
+
+		Vector3 Vij = v1.Item1 - v0.Item1;
+		Vector3 v0Vec = v0.Item1.AsVector3();
 
 		int[] indices = GetNeighbors(e.MiddlePoint, ballRadius * 2).ToArray();
 		for (int t = 0; t < indices.Length; t++) {
@@ -541,28 +545,30 @@ class Pivoter {
 			if (plane.AbsDistance(point) <= ballRadius) {
 				Vector3 center;
 				if (GetBallCenter(v0.Item2, v1.Item2, index, out center, out _)) {
-					List<int> neighborhood = GetNeighbors(center, ballRadius);
-					if (!isEmpty(neighborhood, v0.Item2, v1.Item2, index, center))
-						continue;
 
-					Vector3 Vij = v1.Item1.AsVector3() - v0.Item1.AsVector3();
-					Vector3 Vik = point - v0.Item1.AsVector3();
+					Vector3 Vik = point - v0Vec;
 					Vector3 faceNormal = Vector3.Cross(Vik, Vij).normalized;
 
 					if (!IsOriented(faceNormal, v0.Item1, v1.Item1, cloud[index]))
 						continue;
 
-					float cosAngle = zeroAngle.Dot(plane.Projection(center).normalized);
-					if (Mathf.Abs(cosAngle) > 1.0f) {
-						cosAngle = Mathf.Sign(cosAngle);
-					}
+					List<int> neighborhood = GetNeighbors(center, ballRadius);
+					if (!isEmpty(neighborhood, v0.Item2, v1.Item2, index, center))
+						continue;
 
-					float angle = Mathf.Acos(cosAngle);
 
-					if (output == null || currentAngle > angle) {
-						currentAngle = angle;
+					//float cosAngle = zeroAngle.Dot(plane.Projection(center).normalized);
+					//if (Mathf.Abs(cosAngle) > 1.0f) {
+					//	cosAngle = Mathf.Sign(cosAngle);
+					//}
+
+					//float angle = Mathf.Acos(cosAngle);
+
+					//if (output == null /*|| currentAngle > angle*/) {
+						//currentAngle = angle;
 						output = new Tuple<int, Triangle>(index, new Triangle(v0.Item1, cloud[index], v1.Item1, v0.Item2, index, v1.Item2, center, ballRadius));
-					}
+						return output;
+					//}
 				}
 			}
 		}
