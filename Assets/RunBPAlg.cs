@@ -9,15 +9,17 @@ public class RunBPAlg : MonoBehaviour {
 	public int pivotsPerUpdate = 1;
 	public int pivotAnimationSteps = 10;
 	public bool fromShape = true;
+	public int shapeVertexCount = 1000;
+	public float shapeScale = 10.0f;
 	void Start() {
 		BallPivotingAlgorithm bpa;
 		if (BPAlgObject.TryGetComponent(out bpa)) {
 			Debug.Log("Running BPA...");
 			if (runInUpdate) {
-				bpa.RunInUpdate(fromShape, PointMeshType.Sphere, pivotsPerUpdate, pivotAnimationSteps, 10000, 10.0f, pivotingRadius);
+				bpa.RunInUpdate(fromShape, PointMeshType.Sphere, pivotsPerUpdate, pivotAnimationSteps, shapeVertexCount, shapeScale, pivotingRadius);
 			} else {
 				float[] passes = new float[] { pivotingRadius };
-				bpa.Run(100000, 10.0f, passes);
+				bpa.Run(fromShape, PointMeshType.Sphere, shapeVertexCount, shapeScale, passes);
 			}
 
 		}

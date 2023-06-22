@@ -223,6 +223,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   text: {fileID: 1069644596}
   ball: {fileID: 915621851}
+  debugPivot: 0
+  drawNormals: 0
 --- !u!33 &450382426
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -230,7 +232,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 450382424}
-  m_Mesh: {fileID: -3229963728398979078, guid: 98d1dd8b0f3296748990ca0a8372a455, type: 3}
+  m_Mesh: {fileID: -5676588575540745739, guid: a2504e3d378acd94eb81d949f3f3955d, type: 3}
 --- !u!4 &450382427
 Transform:
   m_ObjectHideFlags: 0
@@ -5241,11 +5243,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   BPAlgObject: {fileID: 450382424}
-  pivotingRadius: 0.05
-  runInUpdate: 0
-  pivotsPerUpdate: 100
-  pivotAnimationSteps: 5
+  pivotingRadius: 0.2
+  runInUpdate: 1
+  pivotsPerUpdate: 5
+  pivotAnimationSteps: 1
   fromShape: 0
+  shapeVertexCount: 65000
+  shapeScale: 10
 --- !u!4 &635250260
 Transform:
   m_ObjectHideFlags: 0

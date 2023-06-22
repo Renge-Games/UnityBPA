@@ -28,6 +28,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	bool pivotingInAction = false;
 	int currentPivotStepNum = 0;
 	public GameObject ball;
+	public bool debugPivot = false;
+	public bool drawNormals = false;
 
 	private void Awake() {
 		MeshRenderer rend = GetComponent<MeshRenderer>();
@@ -40,15 +42,43 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 	private void OnDrawGizmos() {
 		if (cloud != null) {
-			for (int i = 0; i < cloud.Count; i++) {
-				Gizmos.DrawLine(cloud[i].AsVector3(), cloud[i].AsVector3() + cloud[i].NormalAsVector3(0.2f));
+			if (drawNormals) {
+				for (int i = 0; i < cloud.Count; i++) {
+					Gizmos.color = Color.white;
+					Gizmos.DrawLine(cloud[i].AsVector3(), cloud[i].AsVector3() + cloud[i].NormalAsVector3(0.2f));
+				}
+			}
+			if (debugPivot && activePivotEdge != null) {
+				Gizmos.color = Color.red;
+				Gizmos.DrawLine(activePivotEdge.First.Item1.AsVector3(), activePivotEdge.Second.Item1.AsVector3());
+				if (pivoter.stepInitialized) {
+					if (pivoter.stepIndicesCurrentIndex < pivoter.stepIndices.Count) {
+						Gizmos.DrawSphere(cloud[pivoter.stepIndices[pivoter.stepIndicesCurrentIndex]].AsVector3(), ballRadius / 10);
+						Gizmos.color = Color.yellow;
+						int scaleMod = 1;
+						for (int i = pivoter.stepIndicesCurrentIndex + 1; i < pivoter.stepIndices.Count; i++) {
+							Gizmos.DrawSphere(cloud[pivoter.stepIndices[i]].AsVector3(), ballRadius / (10 + scaleMod * 2));
+							scaleMod++;
+						}
+					}
+				}
+				Gizmos.color = Color.green;
+				LinkedListNode<Edge> pos = f.front.First;
+				while(pos.Next != null) {
+					Gizmos.DrawLine(pos.Value.First.Item1.AsVector3(), pos.Value.Second.Item1.AsVector3());
+					pos = pos.Next;
+				}
 			}
 		}
 	}
 
 	private void Update() {
 		if (running) {
-			if (StepBallPivot()) {
+			if (debugPivot) {
+				if (SubStepBallPivot()) {
+					MakeStepMesh();
+				}
+			} else if (StepBallPivot()) {
 				MakeStepMesh();
 			}
 		}
@@ -76,8 +106,8 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 
 			if (shape == PointMeshType.Sphere) {
 				for (int i = 0; i < numPoints; i++) {
-					var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-					var point = normal * scale;
+					Vector3 normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+					Vector3 point = normal * scale;
 					cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
 				}
 			}
@@ -97,27 +127,39 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 		f = new Front();
 	}
 
-	public void Run(int numPoints, float scale, float[] passes) {
+	public void Run(bool fromShape, PointMeshType type, int numPoints, float scale, float[] passes) {
 		startTime = Time.realtimeSinceStartup;
 
-		mesh = meshFilter.mesh;
-		//generate a sphere of points for testing purposes
+		if (fromShape) {
+			switch (type) {
+				case PointMeshType.Sphere: {
+					//generate a sphere of points for testing purposes
+					cloud = new PointCloud<PointNormal>(numPoints);
 
-		cloud = new PointCloud<PointNormal>(mesh.vertexCount);
-		//cloud = new PointCloud<PointNormal>(numPoints);
-		var vertices = mesh.vertices;
-		var normals = mesh.normals;
-		for (int i = 0; i < mesh.vertexCount; i++) {
-			Vector3 v = vertices[i];
-			Vector3 n = normals[i];
-			cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
+
+					for (int i = 0; i < numPoints; i++) {
+						var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
+						var point = normal * scale;
+						cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
+					}
+					break;
+				}
+				default:
+					return;
+
+			}
+		} else {
+			mesh = meshFilter.mesh;
+			cloud = new PointCloud<PointNormal>(mesh.vertexCount);
+			var vertices = mesh.vertices;
+			var normals = mesh.normals;
+			for (int i = 0; i < mesh.vertexCount; i++) {
+				Vector3 v = vertices[i];
+				Vector3 n = normals[i];
+				cloud.Add(new PointNormal(v.x, v.y, v.z, n.x, n.y, n.z));
+			}
 		}
 
-		//for (int i = 0; i < numPoints; i++) {
-		//	var normal = new Vector3(UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f, UnityEngine.Random.value - 0.5f).normalized;
-		//	var point = normal * scale;
-		//	cloud.Add(new PointNormal(point.x, point.y, point.z, normal.x, normal.y, normal.z));
-		//}
 
 		float initTime = (Time.realtimeSinceStartup - startTime);
 		Debug.Log("Point Cloud loaded in: " + initTime + "s");
@@ -154,7 +196,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 	bool StepBallPivot() {
 		bool updated = false;
 		Edge e;
-		int i = 0;
+		int i;
 
 
 		if (pivotingInAction) {
@@ -188,6 +230,9 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 						pivotEdge = e;
 					} else {
 						ball.transform.position = t.Item2.BallCenter;
+						if ((t.Item2.First.Item1 - t.Item2.Second.Item1).magnitude > 2 || (t.Item2.First.Item1 - t.Item2.Third.Item1).magnitude > 2 || (t.Item2.Second.Item1 - t.Item2.Third.Item1).magnitude > 2) {
+							int asdf = 0;
+						}
 						preMesh.Add(t.Item2);
 						updated = true;
 					}
@@ -207,6 +252,53 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 				} else {
 					running = false;
 				}
+			}
+		}
+		return updated;
+	}
+
+	Edge activePivotEdge;
+	bool activeEdgeQueried = false;
+	bool SubStepBallPivot() {
+		bool updated = false;
+
+		if (!activeEdgeQueried) {
+			activePivotEdge = f.GetActiveEdge();
+			activeEdgeQueried = true;
+		}
+		if (activePivotEdge != null) {
+			bool pivotRes = pivoter.StepPivot(activePivotEdge);
+			Tuple<int, Triangle> t = null;
+			if (pivotRes) {
+				t = pivoter.stepOutput;
+				bool addToMesh = false;
+				if (t != null) addToMesh = true;
+				if (addToMesh && !pivoter.IsUsed(t.Item1)) addToMesh = true;
+				if (addToMesh && f.InFront(t.Item1)) addToMesh = true;
+				//bool otherAddToMesh = t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1));
+				if (addToMesh/*t != null && (!pivoter.IsUsed(t.Item1) || f.InFront(t.Item1))*/) {
+					ball.transform.position = t.Item2.BallCenter;
+					preMesh.Add(t.Item2);
+					updated = true;
+					f.JoinAndGlue(t, pivoter);
+					activeEdgeQueried = false;
+				} else {
+					f.SetInactive(activePivotEdge);
+					activeEdgeQueried = false;
+				}
+			}
+		}
+
+		//only attempt findSeed if an active edge was searched but not found
+		if (activePivotEdge == null && activeEdgeQueried) {
+			Triangle tri;
+			if ((tri = pivoter.FindSeed()) != null) {
+				preMesh.Add(tri);
+				updated = true;
+				ball.transform.position = tri.BallCenter;
+				f.AddEdges(tri);
+			} else {
+				running = false;
 			}
 		}
 		return updated;
@@ -299,7 +391,7 @@ public class BallPivotingAlgorithm : MonoBehaviour {
 }
 
 class Front {
-	LinkedList<Edge> front;
+	public LinkedList<Edge> front;
 	LinkedListNode<Edge> pos;
 	SortedDictionary<int, Dictionary<Edge, LinkedListNode<Edge>>> points;
 
@@ -489,7 +581,7 @@ class Pivoter {
 	VoxelGrid<PointNormal> vgrid;
 	PointCloud<PointNormal> cloud;
 	float ballRadius;
-	SortedDictionary<int, bool> notUsed;
+	Dictionary<int, bool> notUsed;
 	public int totalSearches;
 
 	public Pivoter(PointCloud<PointNormal> cloud, float ballRadius) {
@@ -500,7 +592,7 @@ class Pivoter {
 		//octree = new OcTree<PointNormal>();
 		//octree.SetInputCloud(cloud, 80);
 		SetBallRadius(ballRadius);
-		notUsed = new SortedDictionary<int, bool>();
+		notUsed = new Dictionary<int, bool>();
 
 		for (int i = 0; i < cloud.Count; i++) {
 			notUsed[i] = false;
@@ -511,6 +603,83 @@ class Pivoter {
 		if (radius == 0 || cloud == null) return;
 		this.ballRadius = radius;
 		vgrid = new VoxelGrid<PointNormal>(cloud, ballRadius);
+	}
+
+	public bool stepInitialized = false;
+	public Vector3 stepNormal;
+	public HyperPlane stepPlane;
+	public Vector3 stepZeroAngle;
+	public float stepCurrentAngle;
+	public Tuple<int, Triangle> stepOutput;
+	public Vector3 stepVij;
+	public List<int> stepIndices;
+	public int stepIndicesCurrentIndex;
+
+	/// <returns>true if done, false if not done</returns>
+	public bool StepPivot(Edge e) {
+		if (!stepInitialized) {
+			stepInitialized = true;
+			stepNormal = (e.First.Item1 - e.MiddlePoint).normalized;
+			stepPlane = new HyperPlane(stepNormal, e.MiddlePoint);
+			stepZeroAngle = e.OppositeVertex.Item1 - e.MiddlePoint;
+			stepZeroAngle = stepPlane.Projection(stepZeroAngle);
+			stepZeroAngle.Normalize();
+
+			stepCurrentAngle = Mathf.PI;
+			stepOutput = null;
+
+			stepVij = e.Second.Item1 - e.First.Item1;
+			stepIndices = GetNeighbors(e.MiddlePoint, ballRadius * 2);
+
+			stepIndicesCurrentIndex = 0;
+		}
+		if (stepIndicesCurrentIndex >= stepIndices.Count) {
+			stepInitialized = false;
+			return true;
+		}
+
+		int index = stepIndices[stepIndicesCurrentIndex];
+		if (e.First.Item2 == index || e.Second.Item2 == index || e.OppositeVertex.Item2 == index) {
+			stepIndicesCurrentIndex++;
+			return false;
+		}
+		PointNormal point = cloud[index];
+
+		if (stepPlane.AbsDistance(point) <= ballRadius) {
+			Vector3 center;
+			if (GetBallCenter(e.First.Item2, e.Second.Item2, index, out center, out _)) {
+
+				Vector3 Vik = point - e.First.Item1;
+				Vector3 faceNormal = Vector3.Cross(Vik, stepVij).normalized;
+
+				if (!IsOriented(faceNormal, e.First.Item1, e.Second.Item1, cloud[index])) {
+					stepIndicesCurrentIndex++;
+					return false;
+				}
+
+
+				List<int> neighborhood = GetNeighbors(center, ballRadius);
+				if (!isEmpty(neighborhood, e.First.Item2, e.Second.Item2, index, center)) {
+					stepIndicesCurrentIndex++;
+					return false;
+				}
+
+
+				float cosAngle = stepZeroAngle.Dot(stepPlane.Projection(center).normalized);
+				if (Mathf.Abs(cosAngle) > 1.0f) {
+					cosAngle = Mathf.Sign(cosAngle);
+				}
+
+				float angle = Mathf.Acos(cosAngle);
+
+				if (stepOutput == null || stepCurrentAngle > angle) {
+					stepCurrentAngle = angle;
+					stepOutput = new Tuple<int, Triangle>(index, new Triangle(e.First.Item1, point, e.Second.Item1, e.First.Item2, index, e.Second.Item2, center, ballRadius));
+				}
+			}
+		}
+		stepIndicesCurrentIndex++;
+		return false;
 	}
 
 	internal Tuple<int, Triangle> Pivot(Edge e) {
@@ -534,7 +703,6 @@ class Pivoter {
 		Tuple<int, Triangle> output = null;
 
 		Vector3 Vij = v1.Item1 - v0.Item1;
-		Vector3 v0Vec = v0.Item1.AsVector3();
 
 		int[] indices = GetNeighbors(e.MiddlePoint, ballRadius * 2).ToArray();
 		for (int t = 0; t < indices.Length; t++) {
@@ -547,7 +715,7 @@ class Pivoter {
 				Vector3 center;
 				if (GetBallCenter(v0.Item2, v1.Item2, index, out center, out _)) {
 
-					Vector3 Vik = point - v0Vec;
+					Vector3 Vik = point - v0.Item1;
 					Vector3 faceNormal = Vector3.Cross(Vik, Vij).normalized;
 
 					if (!IsOriented(faceNormal, v0.Item1, v1.Item1, cloud[index]))
@@ -579,10 +747,9 @@ class Pivoter {
 
 	internal Triangle FindSeed() {
 		float neighborhoodSize = 1.3f;
-
 		Triangle seed = null;
 		bool found = false;
-		SortedDictionary<ulong, bool> tested = new SortedDictionary<ulong, bool>();
+		Dictionary<ulong, bool> tested = new Dictionary<ulong, bool>();
 		List<int> removeIndices = new List<int>();
 
 		foreach (KeyValuePair<int, bool> pair in notUsed) {
@@ -601,7 +768,7 @@ class Pivoter {
 				if (index1 == index0 || !notUsed.ContainsKey(index1) || removeIndices.Contains(index1))
 					continue;
 
-				for (int k = 0; k < indices.Length && !found; k++) {
+				for (int k = j + 1; k < indices.Length && !found; k++) {
 					int index2 = indices[k];
 
 					if (index1 == index2 || index2 == index0 || !notUsed.ContainsKey(index2) || removeIndices.Contains(index2))
@@ -611,24 +778,24 @@ class Pivoter {
 					trio.Add(index0);
 					trio.Add(index1);
 					trio.Add(index2);
-					trio.Sort();
+					//trio.Sort();
 					ulong code = Convert.ToUInt64(trio[0]) + Convert.ToUInt64(1e6 * trio[1]) + Convert.ToUInt64(1e12 * trio[2]);
 
 					bool toContinue = false;
 
-					if (tested.TryGetValue(code, out _)) toContinue = true;
+					if (tested.ContainsKey(code)) toContinue = true;
 					else tested[code] = true;
 
 					if (toContinue) continue;
 
 					Vector3 center;
-					Vector3Int sequence;
+					Tuple<PointNormal, int>[] sequence;
 
 					if (!found && GetBallCenter(index0, index1, index2, out center, out sequence)) {
 						List<int> neighborhood = GetNeighbors(center, ballRadius);
 						if (!found && isEmpty(neighborhood, index0, index1, index2, center)) {
 
-							seed = new Triangle(cloud[sequence[0]], cloud[sequence[1]], cloud[sequence[2]], sequence[0], sequence[1], sequence[2], center, ballRadius);
+							seed = new Triangle(sequence[0], sequence[1], sequence[2], center, ballRadius);
 
 							removeIndices.Add(index0);
 							removeIndices.Add(index1);
@@ -652,7 +819,7 @@ class Pivoter {
 	}
 
 	internal bool IsUsed(int index) {
-		return !notUsed.TryGetValue(index, out _);
+		return !notUsed.ContainsKey(index);
 	}
 
 	internal void SetUsed(int index) {
@@ -683,14 +850,17 @@ class Pivoter {
 		return new Tuple<Vector3, float>(circumscribedCircleCenter, circumscribedCircleRadius);
 	}
 
-	bool GetBallCenter(int index0, int index1, int index2, out Vector3 center, out Vector3Int sequence) {
+	bool GetBallCenter(int index0, int index1, int index2, out Vector3 center, out Tuple<PointNormal, int>[] sequence) {
 		bool status = false;
 		center = new Vector3();
 
-		Point p0 = cloud[index0];
-		Point p1 = cloud[index1];
-		Point p2 = cloud[index2];
-		sequence = new Vector3Int(index0, index1, index2);
+		PointNormal p0 = cloud[index0];
+		PointNormal p1 = cloud[index1];
+		PointNormal p2 = cloud[index2];
+		sequence = new Tuple<PointNormal, int>[3];
+		sequence[0] = new Tuple<PointNormal, int>(p0, index0);
+		sequence[1] = new Tuple<PointNormal, int>(p1, index1);
+		sequence[2] = new Tuple<PointNormal, int>(p2, index2);
 
 		Vector3 v10 = p1 - p0;
 		Vector3 v20 = p2 - p0;
@@ -698,17 +868,23 @@ class Pivoter {
 
 		if (normal.magnitude > 0.0000000001) {
 			normal.Normalize();
-			if (!IsOriented(normal, cloud[index0], cloud[index1], cloud[index2])) {
+			if (!IsOriented(normal, p0, p1, p2)) {
 				p0 = cloud[index1];
 				p1 = cloud[index0];
-				sequence = new Vector3Int(index1, index0, index2);
+				//sequence = new Vector3Int(index1, index0, index2);
+				Tuple<PointNormal, int> tmp = sequence[0];
+				sequence[0] = sequence[1];
+				sequence[1] = tmp;
 
 				v10 = p1 - p0;
 				v20 = p2 - p0;
+				//v10 = sequence[1].Item1 - sequence[0].Item1;
+				//v20 = sequence[2].Item1 - sequence[0].Item1;
 				normal = Vector3.Cross(v10, v20).normalized;
 			}
 
 			Tuple<Vector3, float> circle = GetCircumscribedCircle(p0, p1, p2);
+			//Tuple<Vector3, float> circle = GetCircumscribedCircle(sequence[0].Item1, sequence[1].Item1, sequence[2].Item1);
 			float squaredDistance = ballRadius * ballRadius - circle.Item2 * circle.Item2;
 			if (squaredDistance > 0) {
 				float distance = Mathf.Sqrt(Mathf.Abs(squaredDistance));
@@ -719,6 +895,7 @@ class Pivoter {
 
 		return status;
 	}
+
 
 	bool IsOriented(Vector3 normal, PointNormal normal0, PointNormal normal1, PointNormal normal2) {
 		int count = 0;

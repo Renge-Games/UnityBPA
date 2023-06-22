@@ -105,10 +105,6 @@ namespace renge_pcl {
 
 				voxels_[x + width_ * y + width_ * height_ * z].Insert(i);
 			}
-
-			//for (int i = 0; i < voxels_.Length; i++) {
-			//	voxels_[i].FinishInit();
-			//}
 		}
 
 		public int RadiusSearch(Vector3 point, float radius, out List<int> indices) {
@@ -129,7 +125,6 @@ namespace renge_pcl {
 
 			float sqrRadius = radius * radius;
 			int wh = width_ * height_;
-			//float sqrRadius = radius * radius;
 			for (int x = 0; x < numVoxels; x++) {
 				int xi = (index.x + x);
 				if (xi >= width_ || xi < 0) continue;
@@ -148,12 +143,6 @@ namespace renge_pcl {
 								indices.Add(query[j]);
 							}
 						}
-
-						//foreach (int i in query) {
-						//	if ((cloud_[i] - point).sqrMagnitude <= sqrRadius) {
-						//		indices.Add(i);
-						//	}
-						//}
 					}
 				}
 			}
@@ -784,6 +773,14 @@ namespace renge_pcl {
 			First = new Tuple<PointNormal, int>(p0, index0);
 			Second = new Tuple<PointNormal, int>(p1, index1);
 			Third = new Tuple<PointNormal, int>(p2, index2);
+			BallCenter = ballCenter;
+			BallRadius = ballRadius;
+		}
+
+		public Triangle(Tuple<PointNormal, int> p0, Tuple<PointNormal, int> p1, Tuple<PointNormal, int> p2, Vector3 ballCenter, float ballRadius) {
+			First = p0;
+			Second = p1;
+			Third = p2;
 			BallCenter = ballCenter;
 			BallRadius = ballRadius;
 		}
